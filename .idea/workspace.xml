@@ -4,12 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3a3788db-e838-49f7-8699-499a8265b304" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/GhostTextManager_v2.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/GhostTextManager_v2.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SWIFT_INTEGRATION_GUIDE.md" beforeDir="false" afterPath="$PROJECT_DIR$/SWIFT_INTEGRATION_GUIDE.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/server.js" afterDir="false" />
-    </list>
+    <list default="true" id="3a3788db-e838-49f7-8699-499a8265b304" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -44,7 +39,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "dev.sweep.assistant.data.RecentlyUsedFiles": "README.md;SWIFT_INTEGRATION_GUIDE.md;SWEEP.md;RENDER_FIX.md;backend/test.js;QUICK_DEPLOY.md;backend/README.md;backend/.gitignore;backend/.env.example;backend/server.js",
+    "dev.sweep.assistant.data.RecentlyUsedFiles": "backend/server.js;README.md;SWIFT_INTEGRATION_GUIDE.md;SWEEP.md;RENDER_FIX.md;backend/test.js;QUICK_DEPLOY.md;backend/README.md;backend/.gitignore;backend/.env.example",
     "git-widget-placeholder": "main",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
@@ -76,7 +71,7 @@
       <workItem from="1763440263389" duration="78000" />
       <workItem from="1763440428361" duration="875000" />
       <workItem from="1763442925514" duration="9000" />
-      <workItem from="1763443977473" duration="3301000" />
+      <workItem from="1763443977473" duration="3536000" />
     </task>
     <servers />
   </component>
