@@ -219,6 +219,18 @@
             </GhostTextMetaData>
           </value>
         </entry>
+        <entry key="run npm install&#10;npm run build&#10; check if it fail locally">
+          <value>
+            <GhostTextMetaData>
+              <option name="count" value="1.0" />
+              <option name="timestamps">
+                <list>
+                  <option value="1763440301586" />
+                </list>
+              </option>
+            </GhostTextMetaData>
+          </value>
+        </entry>
         <entry key="src/controllers/translation.controller.ts(1,35): error TS7016: Could not find a declaration file for module 'express'. '/opt/render/project/src/node_modules/express/index.js' implicitly has an 'any' type.&#10;  Try `npm i --save-dev @&lt;file_name&gt;&#10;src/index.ts(1,53): error TS7016: Could not find a declaration file for module 'express'. '/opt/render/project/src/node_modules/express/index.js' implicitly has an 'any' type.&#10;  Try `npm i --save-dev @&lt;file_name&gt;&#10;src/index.ts(2,18): error TS7016: Could not find a declaration file for module 'cors'. '/opt/render/project/src/node_modules/cors/lib/index.js' implicitly has an 'any' type.&#10;  Try `npm i --save-dev @&lt;file_name&gt;&#10;src/routes/translation.routes.ts(1,24): error TS7016: Could not find a declaration file for module 'express'. '/opt/render/project/src/node_modules/express/index.js' implicitly has an 'any' type.&#10;  Try `npm i --save-dev @&lt;file_name&gt;&#10;npm error code 2&#10;npm error path /opt/render/project/src&#10;npm error command failed&#10;npm error command sh -c npm run build&#10;npm error A complete log of this run can be found in: /opt/render/.cache/_logs/2025-11-18T04_07_50_671Z-debug-0.log&#10;==&gt; Build failed &#10;==&gt; Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys&#10;Need better ways to work with logs? Try theRender CLI, Render MCP Server, or set up a log stream integration">
           <value>
             <GhostTextMetaData>
