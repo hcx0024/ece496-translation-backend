@@ -57,7 +57,7 @@ git push origin main
 
 4. **Configure the service:**
    - **Name**: `ece496-translation-api` (or any name you like)
-   - **Root Directory**: `backend`
+   - **Root Directory**: `backend` ⚠️ **IMPORTANT: Must be set to `backend`**
    - **Environment**: `Node`
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
