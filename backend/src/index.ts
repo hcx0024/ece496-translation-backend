@@ -10,7 +10,12 @@ const app: Express = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors()); // Enable CORS for all routes (allows Swift app to connect)
+// Enable CORS for all routes (allows Swift app to connect from any origin)
+app.use(cors({
+  origin: '*', // Allow all origins in production (you can restrict this later)
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
+}));
 app.use(express.json()); // Parse JSON request bodies
 
 // Health check endpoint

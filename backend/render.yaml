@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ece496-translation-api
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: LIBRETRANSLATE_URL
+        value: https://libretranslate.com
