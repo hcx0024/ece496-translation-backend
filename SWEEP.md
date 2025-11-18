@@ -33,9 +33,16 @@ npm test
 curl http://localhost:3000/health
 ```
 
-**Translate Word:**
+**Translate Word (Simple):**
 ```bash
 curl -X POST http://localhost:3000/api/translate \
+  -H "Content-Type: application/json" \
+  -d '{"word":"hello","targetLanguage":"es"}'
+```
+
+**Translate Word with Example Sentence (NEW!):**
+```bash
+curl -X POST http://localhost:3000/api/translate-with-example \
   -H "Content-Type: application/json" \
   -d '{"word":"hello","targetLanguage":"es"}'
 ```

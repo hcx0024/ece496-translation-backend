@@ -30,10 +30,11 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     message: 'ECE496 Translation API',
-    version: '1.0.0',
+    version: '2.0.0',
     endpoints: {
       health: 'GET /health',
       translate: 'POST /api/translate',
+      translateWithExample: 'POST /api/translate-with-example',
       languages: 'GET /api/languages'
     }
   });
@@ -91,6 +92,132 @@ app.post('/api/translate', async (req, res) => {
 
   } catch (error) {
     console.error('Translation error:', error.message);
+
+    if (error.code === 'ECONNABORTED') {
+      return res.status(504).json({
+        error: 'Translation service timeout',
+        message: 'The translation service took too long to respond'
+      });
+    }
+
+    res.status(500).json({
+      error: 'Translation failed',
+      message: error.message || 'An error occurred while translating',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Translate word with example sentence
+app.post('/api/translate-with-example', async (req, res) => {
+  try {
+    const { word, targetLanguage } = req.body;
+
+    // Validation
+    if (!word || !targetLanguage) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        message: 'Both "word" and "targetLanguage" are required',
+        example: {
+          word: 'hello',
+          targetLanguage: 'es'
+        }
+      });
+    }
+
+    console.log(`Translating "${word}" with example to ${targetLanguage}`);
+
+    // Step 1: Assume input is English, or try to translate to English
+    // For simplicity, we'll assume English input first, then try translation if needed
+    let englishWord = word;
+
+    // Try to detect if word is not English by attempting translation
+    // We'll use the word as-is for dictionary lookup first
+    console.log(`Step 1: Using "${englishWord}" for dictionary lookup`);
+
+    // Step 2: Get English example sentence from Free Dictionary API
+    let exampleSentence = null;
+    let exampleSource = 'template';
+
+    try {
+      const dictionaryResponse = await axios.get(
+        `https://api.dictionaryapi.dev/api/v2/entries/en/${englishWord.toLowerCase()}`,
+        { timeout: 5000 }
+      );
+
+      // Extract first example sentence found
+      if (dictionaryResponse.data && Array.isArray(dictionaryResponse.data)) {
+        for (const entry of dictionaryResponse.data) {
+          if (entry.meanings && Array.isArray(entry.meanings)) {
+            for (const meaning of entry.meanings) {
+              if (meaning.definitions && Array.isArray(meaning.definitions)) {
+                for (const definition of meaning.definitions) {
+                  if (definition.example) {
+                    exampleSentence = definition.example;
+                    exampleSource = 'dictionary';
+                    break;
+                  }
+                }
+                if (exampleSentence) break;
+              }
+            }
+            if (exampleSentence) break;
+          }
+        }
+      }
+    } catch (dictError) {
+      console.log('Dictionary API failed, will use template sentence');
+    }
+
+    // Fallback: Create template sentence if no example found
+    if (!exampleSentence) {
+      exampleSentence = `I want to learn the word "${englishWord}".`;
+      exampleSource = 'template';
+    }
+
+    console.log(`Step 2: Example sentence: "${exampleSentence}" (${exampleSource})`);
+
+    // Step 3: Translate the word to target language (from English)
+    const wordTranslationResponse = await axios.get('https://api.mymemory.translated.net/get', {
+      params: {
+        q: englishWord,
+        langpair: `en|${targetLanguage}`
+      },
+      timeout: 10000
+    });
+
+    const translatedWord = wordTranslationResponse.data?.responseData?.translatedText || englishWord;
+    console.log(`Step 3: "${englishWord}" → "${translatedWord}" (${targetLanguage})`);
+
+    // Step 4: Translate the example sentence to target language
+    const sentenceTranslationResponse = await axios.get('https://api.mymemory.translated.net/get', {
+      params: {
+        q: exampleSentence,
+        langpair: `en|${targetLanguage}`
+      },
+      timeout: 10000
+    });
+
+    const translatedSentence = sentenceTranslationResponse.data?.responseData?.translatedText || exampleSentence;
+    console.log(`Step 4: Sentence translated to ${targetLanguage}`);
+
+    // Return complete response
+    res.json({
+      success: true,
+      original: word,
+      translated: translatedWord,
+      targetLanguage: targetLanguage,
+      exampleSentence: {
+        original: exampleSentence,
+        translated: translatedSentence,
+        source: exampleSource
+      },
+      confidence: wordTranslationResponse.data?.responseData?.match || 0,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Translation with example error:', error.message);
 
     if (error.code === 'ECONNABORTED') {
       return res.status(504).json({

@@ -219,6 +219,42 @@
             </GhostTextMetaData>
           </value>
         </entry>
+        <entry key="like i wanna get a word in french and I want to have a french sentense with that word, so i get english input first, get english sentense, call google tranlsate to get french?">
+          <value>
+            <GhostTextMetaData>
+              <option name="count" value="1.0" />
+              <option name="timestamps">
+                <list>
+                  <option value="1763447058096" />
+                </list>
+              </option>
+            </GhostTextMetaData>
+          </value>
+        </entry>
+        <entry key="list options, I take word, language it want to translate in, note the input may not be english, i will return tranlated word, and translated word in that sentense">
+          <value>
+            <GhostTextMetaData>
+              <option name="count" value="1.0" />
+              <option name="timestamps">
+                <list>
+                  <option value="1763447126769" />
+                </list>
+              </option>
+            </GhostTextMetaData>
+          </value>
+        </entry>
+        <entry key="next, on top of this, i need to provide example sentense, how should i get an example sentense, from chatgpt or other api?">
+          <value>
+            <GhostTextMetaData>
+              <option name="count" value="1.0" />
+              <option name="timestamps">
+                <list>
+                  <option value="1763446861972" />
+                </list>
+              </option>
+            </GhostTextMetaData>
+          </value>
+        </entry>
         <entry key="no it is not there">
           <value>
             <GhostTextMetaData>
@@ -274,6 +310,18 @@
               <option name="timestamps">
                 <list>
                   <option value="1763437969532" />
+                </list>
+              </option>
+            </GhostTextMetaData>
+          </value>
+        </entry>
+        <entry key="perfect, active now, now write me a doc teach my teammate how to use and how to call and how to test cuz they do not have experiences">
+          <value>
+            <GhostTextMetaData>
+              <option name="count" value="1.0" />
+              <option name="timestamps">
+                <list>
+                  <option value="1763445032550" />
                 </list>
               </option>
             </GhostTextMetaData>

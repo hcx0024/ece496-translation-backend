@@ -133,7 +133,45 @@ You should see:
 
 ---
 
-### 3. Get Supported Languages
+### 3. Translate Word with Example Sentence (NEW! ⭐)
+**What it does:** Translates a word AND provides an example sentence in the target language
+
+**URL:** `POST /api/translate-with-example`
+
+**You need to send:**
+```json
+{
+  "word": "hello",
+  "targetLanguage": "es"
+}
+```
+
+**You will receive:**
+```json
+{
+  "success": true,
+  "original": "hello",
+  "translated": "hola",
+  "targetLanguage": "es",
+  "exampleSentence": {
+    "original": "Hello, everyone.",
+    "translated": "Hola a todos.",
+    "source": "dictionary"
+  },
+  "confidence": 1,
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**How it works:**
+1. Gets an English example sentence from a real dictionary
+2. Translates the word to your target language
+3. Translates the example sentence to your target language
+4. Returns both the word and sentence in the target language!
+
+---
+
+### 4. Get Supported Languages
 **What it does:** Shows all languages you can translate to
 
 **URL:** `GET /api/languages`
@@ -184,6 +222,22 @@ struct TranslationResponse: Codable {
 struct Alternative: Codable {
     let translation: String
     let quality: String
+    let source: String
+}
+
+struct TranslationWithExampleResponse: Codable {
+    let success: Bool
+    let original: String
+    let translated: String
+    let targetLanguage: String
+    let exampleSentence: ExampleSentence
+    let confidence: Double
+    let timestamp: String
+}
+
+struct ExampleSentence: Codable {
+    let original: String
+    let translated: String
     let source: String
 }
 
@@ -288,6 +342,54 @@ class TranslationAPI {
         }.resume()
     }
 
+    // MARK: - Translate Word with Example Sentence (NEW!)
+    static func translateWithExample(
+        word: String,
+        to language: String,
+        completion: @escaping (Result<TranslationWithExampleResponse, Error>) -> Void
+    ) {
+        // Create URL
+        guard let url = URL(string: "\(baseURL)/api/translate-with-example") else {
+            completion(.failure(NSError(domain: "Invalid URL", code: -1)))
+            return
+        }
+
+        // Create request
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Create request body
+        let body = TranslationRequest(word: word, targetLanguage: language)
+
+        do {
+            request.httpBody = try JSONEncoder().encode(body)
+        } catch {
+            completion(.failure(error))
+            return
+        }
+
+        // Send request
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+
+            guard let data = data else {
+                completion(.failure(NSError(domain: "No data received", code: -1)))
+                return
+            }
+
+            do {
+                let result = try JSONDecoder().decode(TranslationWithExampleResponse.self, from: data)
+                completion(.success(result))
+            } catch {
+                completion(.failure(error))
+            }
+        }.resume()
+    }
+
     // MARK: - Health Check
     static func checkHealth(
         completion: @escaping (Result<HealthResponse, Error>) -> Void
@@ -323,10 +425,40 @@ class TranslationAPI {
 
 ## 🎯 How to Use in Your Swift App
 
-### Example 1: Translate a Word
+### Example 1: Translate a Word with Example Sentence (RECOMMENDED! ⭐)
 
 ```swift
-// Translate "hello" to Spanish
+// Translate "hello" to Spanish with example sentence
+TranslationAPI.translateWithExample(word: "hello", to: "es") { result in
+    switch result {
+    case .success(let translation):
+        print("Original: \(translation.original)")
+        print("Translated: \(translation.translated)")
+        print("Example (English): \(translation.exampleSentence.original)")
+        print("Example (Spanish): \(translation.exampleSentence.translated)")
+
+        // Update your UI on the main thread
+        DispatchQueue.main.async {
+            // Update your labels with both word and example
+            // wordLabel.text = translation.translated
+            // exampleLabel.text = translation.exampleSentence.translated
+        }
+
+    case .failure(let error):
+        print("Translation failed: \(error.localizedDescription)")
+
+        // Show error to user
+        DispatchQueue.main.async {
+            // Show alert or error message
+        }
+    }
+}
+```
+
+### Example 2: Translate Just a Word (Simple)
+
+```swift
+// Translate "hello" to Spanish (without example)
 TranslationAPI.translate(word: "hello", to: "es") { result in
     switch result {
     case .success(let translation):
@@ -352,7 +484,7 @@ TranslationAPI.translate(word: "hello", to: "es") { result in
 }
 ```
 
-### Example 2: Get All Languages
+### Example 3: Get All Languages
 
 ```swift
 TranslationAPI.getSupportedLanguages { result in
@@ -374,7 +506,7 @@ TranslationAPI.getSupportedLanguages { result in
 }
 ```
 
-### Example 3: Check if API is Working
+### Example 4: Check if API is Working
 
 ```swift
 TranslationAPI.checkHealth { result in
@@ -402,6 +534,7 @@ import SwiftUI
 struct TranslationView: View {
     @State private var inputWord = ""
     @State private var translatedWord = ""
+    @State private var exampleSentence = ""
     @State private var selectedLanguage = "es"
     @State private var isLoading = false
     @State private var errorMessage = ""
@@ -456,16 +589,31 @@ struct TranslationView: View {
 
             // Result
             if !translatedWord.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Translation:")
-                        .font(.headline)
-                    Text(translatedWord)
-                        .font(.title)
-                        .bold()
-                        .foregroundColor(.green)
+                VStack(alignment: .leading, spacing: 15) {
+                    // Translated word
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Translation:")
+                            .font(.headline)
+                        Text(translatedWord)
+                            .font(.title)
+                            .bold()
+                            .foregroundColor(.green)
+                    }
+
+                    // Example sentence
+                    if !exampleSentence.isEmpty {
+                        Divider()
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Example Sentence:")
+                                .font(.headline)
+                            Text(exampleSentence)
+                                .font(.body)
+                                .foregroundColor(.blue)
+                        }
+                    }
                 }
                 .padding()
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.green.opacity(0.1))
                 .cornerRadius(10)
                 .padding()
@@ -487,14 +635,17 @@ struct TranslationView: View {
         isLoading = true
         errorMessage = ""
         translatedWord = ""
+        exampleSentence = ""
 
-        TranslationAPI.translate(word: inputWord, to: selectedLanguage) { result in
+        // Use the new endpoint with example sentences!
+        TranslationAPI.translateWithExample(word: inputWord, to: selectedLanguage) { result in
             DispatchQueue.main.async {
                 isLoading = false
 
                 switch result {
                 case .success(let translation):
                     translatedWord = translation.translated
+                    exampleSentence = translation.exampleSentence.translated
 
                 case .failure(let error):
                     errorMessage = "Error: \(error.localizedDescription)"
@@ -604,10 +755,17 @@ Before submitting your app, test these:
 
 **API Base URL:** `https://ece496-translation-api.onrender.com`
 
-**Translate:** `POST /api/translate`
+**Translate with Example (RECOMMENDED):** `POST /api/translate-with-example`
 ```json
 { "word": "hello", "targetLanguage": "es" }
 ```
+Returns: word + example sentence in target language
+
+**Translate (Simple):** `POST /api/translate`
+```json
+{ "word": "hello", "targetLanguage": "es" }
+```
+Returns: just the translated word
 
 **Languages:** `GET /api/languages`
 
