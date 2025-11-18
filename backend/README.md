@@ -1,114 +1,169 @@
-# Translation API Backend
+# ECE496 Translation API Backend
 
-A TypeScript/Express backend that provides translation services for the ECE496 project.
+A Node.js/Express backend that provides translation services for a Swift frontend application.
 
-## 🚀 Quick Start
+## 🚀 Features
 
-### 1. Install Dependencies
+- **Translation API**: Translate words from English to multiple languages
+- **External Dictionary Integration**: Uses MyMemory Translation API (free, no API key required)
+- **CORS Enabled**: Ready for Swift frontend integration
+- **Render.com Ready**: Configured for easy deployment
+- **Health Checks**: Built-in health monitoring endpoint
 
-```bash
-cd backend
-npm install
+## 📋 API Endpoints
+
+### 1. Health Check
+```
+GET /health
+```
+Returns server health status.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "uptime": 123.45
+}
 ```
 
-### 2. Start the Server
-
-**Development mode (with auto-reload):**
-```bash
-npm run dev
+### 2. Translate Word
 ```
-
-**Production mode:**
-```bash
-npm run build
-npm start
+POST /api/translate
 ```
-
-The server will start on `http://localhost:3000`
-
----
-
-## 📡 API Endpoints
-
-### 1. Translate a Word
-
-**Endpoint:** `POST /api/translate`
 
 **Request Body:**
 ```json
 {
   "word": "hello",
-  "targetLanguage": "es",
-  "sourceLanguage": "en"
+  "targetLanguage": "es"
 }
 ```
 
-**Parameters:**
-- `word` (required): The word to translate
-- `targetLanguage` (required): Target language code (e.g., "es", "fr", "de")
-- `sourceLanguage` (optional): Source language code. Defaults to "auto" for auto-detection
-
-**Response (Success):**
+**Response:**
 ```json
 {
   "success": true,
-  "data": {
-    "originalWord": "hello",
-    "translatedWord": "hola",
-    "sourceLanguage": "en",
-    "targetLanguage": "es"
-  }
+  "original": "hello",
+  "translated": "hola",
+  "targetLanguage": "es",
+  "confidence": 1,
+  "alternatives": [
+    {
+      "translation": "hola",
+      "quality": "100",
+      "source": "MyMemory"
+    }
+  ],
+  "timestamp": "2024-01-01T00:00:00.000Z"
 }
 ```
 
-**Response (Error):**
-```json
-{
-  "success": false,
-  "error": "Missing required fields: word and targetLanguage are required"
-}
+### 3. Get Supported Languages
 ```
-
----
-
-### 2. Get Supported Languages
-
-**Endpoint:** `GET /api/translate/languages`
+GET /api/languages
+```
 
 **Response:**
 ```json
 {
   "success": true,
   "languages": [
-    { "code": "en", "name": "English" },
     { "code": "es", "name": "Spanish" },
     { "code": "fr", "name": "French" },
-    { "code": "de", "name": "German" },
-    { "code": "zh", "name": "Chinese" }
+    ...
   ]
 }
 ```
 
----
+## 🛠️ Local Development
 
-### 3. Health Check
+### Prerequisites
+- Node.js 18+ installed
+- npm or yarn
 
-**Endpoint:** `GET /health`
+### Setup
 
-**Response:**
-```json
-{
-  "status": "ok",
-  "message": "Translation API is running",
-  "timestamp": "2024-01-15T10:30:00.000Z"
-}
+1. **Install dependencies:**
+```bash
+cd backend
+npm install
 ```
 
----
+2. **Create environment file:**
+```bash
+cp .env.example .env
+```
 
-## 🍎 Swift Integration Guide
+3. **Start development server:**
+```bash
+npm run dev
+```
 
-### Example: Translate a Word from Swift
+The server will start on `http://localhost:3000`
+
+### Test the API
+
+```bash
+# Health check
+curl http://localhost:3000/health
+
+# Translate a word
+curl -X POST http://localhost:3000/api/translate \
+  -H "Content-Type: application/json" \
+  -d '{"word":"hello","targetLanguage":"es"}'
+
+# Get supported languages
+curl http://localhost:3000/api/languages
+```
+
+## 🌐 Deploy to Render.com
+
+### Quick Deploy Steps
+
+1. **Push code to GitHub:**
+```bash
+git add .
+git commit -m "Add translation backend"
+git push origin main
+```
+
+2. **Create Render Web Service:**
+   - Go to [render.com](https://render.com)
+   - Sign up/login with GitHub
+   - Click **"New +"** → **"Web Service"**
+   - Connect your repository
+   - Configure:
+     - **Name**: `ece496-translation-api` (or your choice)
+     - **Root Directory**: `backend`
+     - **Environment**: `Node`
+     - **Build Command**: `npm install`
+     - **Start Command**: `npm start`
+     - **Plan**: Free
+
+3. **Add Environment Variables:**
+   - `NODE_ENV` = `production`
+   - `PORT` = `3000` (optional, Render sets this automatically)
+
+4. **Deploy:**
+   - Click **"Create Web Service"**
+   - Wait for deployment (2-3 minutes)
+   - Copy your URL: `https://your-app-name.onrender.com`
+
+### Test Production Deployment
+
+```bash
+# Replace with your actual Render URL
+curl https://your-app-name.onrender.com/health
+
+curl -X POST https://your-app-name.onrender.com/api/translate \
+  -H "Content-Type: application/json" \
+  -d '{"word":"hello","targetLanguage":"es"}'
+```
+
+## 📱 Swift Frontend Integration
+
+### Example Swift Code
 
 ```swift
 import Foundation
@@ -116,30 +171,23 @@ import Foundation
 struct TranslationRequest: Codable {
     let word: String
     let targetLanguage: String
-    let sourceLanguage: String?
 }
 
 struct TranslationResponse: Codable {
     let success: Bool
-    let data: TranslationData?
-    let error: String?
-}
-
-struct TranslationData: Codable {
-    let originalWord: String
-    let translatedWord: String
-    let sourceLanguage: String
+    let original: String
+    let translated: String
     let targetLanguage: String
+    let confidence: Double
+    let timestamp: String
 }
 
 class TranslationAPI {
-    // Change this to your computer's IP address when testing on a real device
-    // Or use your deployed backend URL in production
-    static let baseURL = "http://localhost:3000"
+    static let baseURL = "https://your-app-name.onrender.com"
 
-    static func translate(word: String, to targetLanguage: String, completion: @escaping (Result<TranslationData, Error>) -> Void) {
+    static func translate(word: String, to language: String, completion: @escaping (Result<TranslationResponse, Error>) -> Void) {
         guard let url = URL(string: "\(baseURL)/api/translate") else {
-            completion(.failure(NSError(domain: "Invalid URL", code: 0)))
+            completion(.failure(NSError(domain: "Invalid URL", code: -1)))
             return
         }
 
@@ -147,18 +195,8 @@ class TranslationAPI {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let requestBody = TranslationRequest(
-            word: word,
-            targetLanguage: targetLanguage,
-            sourceLanguage: "auto"
-        )
-
-        do {
-            request.httpBody = try JSONEncoder().encode(requestBody)
-        } catch {
-            completion(.failure(error))
-            return
-        }
+        let body = TranslationRequest(word: word, targetLanguage: language)
+        request.httpBody = try? JSONEncoder().encode(body)
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
@@ -167,18 +205,13 @@ class TranslationAPI {
             }
 
             guard let data = data else {
-                completion(.failure(NSError(domain: "No data", code: 0)))
+                completion(.failure(NSError(domain: "No data", code: -1)))
                 return
             }
 
             do {
-                let response = try JSONDecoder().decode(TranslationResponse.self, from: data)
-                if response.success, let translationData = response.data {
-                    completion(.success(translationData))
-                } else {
-                    let errorMessage = response.error ?? "Unknown error"
-                    completion(.failure(NSError(domain: errorMessage, code: 0)))
-                }
+                let result = try JSONDecoder().decode(TranslationResponse.self, from: data)
+                completion(.success(result))
             } catch {
                 completion(.failure(error))
             }
@@ -186,160 +219,79 @@ class TranslationAPI {
     }
 }
 
-// Usage Example:
+// Usage
 TranslationAPI.translate(word: "hello", to: "es") { result in
     switch result {
-    case .success(let data):
-        print("Translation: \(data.translatedWord)")
-        // Update UI on main thread
-        DispatchQueue.main.async {
-            // Update your UI here
-        }
+    case .success(let translation):
+        print("Translated: \(translation.translated)")
     case .failure(let error):
-        print("Error: \(error.localizedDescription)")
+        print("Error: \(error)")
     }
 }
 ```
 
----
+## 🔧 Supported Languages
 
-## 🌐 Language Codes
+- Spanish (es)
+- French (fr)
+- German (de)
+- Italian (it)
+- Portuguese (pt)
+- Russian (ru)
+- Japanese (ja)
+- Korean (ko)
+- Chinese Simplified (zh-CN)
+- Chinese Traditional (zh-TW)
+- Arabic (ar)
+- Hindi (hi)
+- Dutch (nl)
+- Polish (pl)
+- Turkish (tr)
 
-Common language codes supported:
-
-| Code | Language |
-|------|----------|
-| `en` | English |
-| `es` | Spanish |
-| `fr` | French |
-| `de` | German |
-| `it` | Italian |
-| `pt` | Portuguese |
-| `ru` | Russian |
-| `ja` | Japanese |
-| `ko` | Korean |
-| `zh` | Chinese |
-| `ar` | Arabic |
-| `hi` | Hindi |
-
-For a complete list, call the `/api/translate/languages` endpoint.
-
----
-
-## 🔧 Configuration
-
-Edit the `.env` file to configure:
-
-```env
-PORT=3000
-NODE_ENV=development
-LIBRETRANSLATE_URL=https://libretranslate.com
-```
-
----
-
-## 📱 Testing with Swift Frontend
-
-### Option 1: Same Computer (Simulator)
-- Backend: `http://localhost:3000`
-- Swift app can connect directly to `localhost`
-
-### Option 2: Real iOS Device (Same Network)
-1. Find your computer's IP address:
-   ```bash
-   # On Mac:
-   ifconfig | grep "inet " | grep -v 127.0.0.1
-   ```
-2. Update Swift code to use your IP:
-   ```swift
-   static let baseURL = "http://192.168.1.XXX:3000"
-   ```
-3. Make sure both devices are on the same WiFi network
-
-### Option 3: Production Deployment
-Deploy your backend to:
-- **Heroku**: Free tier available
-- **Railway**: Easy deployment
-- **Render**: Free tier available
-- **AWS/Google Cloud**: More advanced
-
-Then update Swift code:
-```swift
-static let baseURL = "https://your-api.herokuapp.com"
-```
-
----
-
-## 🛠️ Project Structure
+## 📝 Project Structure
 
 ```
 backend/
-├── src/
-│   ├── index.ts                 # Main server file
-│   ├── types/
-│   │   └── translation.types.ts # TypeScript interfaces
-│   ├── routes/
-│   │   └── translation.routes.ts # API routes
-│   ├── controllers/
-│   │   └── translation.controller.ts # Request handlers
-│   └── services/
-│       └── translation.service.ts # Translation logic
-├── package.json
-├── tsconfig.json
-└── .env
+├── server.js           # Main Express server
+├── package.json        # Dependencies and scripts
+├── .env.example        # Environment variables template
+├── .gitignore         # Git ignore rules
+└── README.md          # This file
 ```
-
----
-
-## 🔍 Translation Service
-
-Currently using **LibreTranslate** - a free, open-source translation API.
-
-### Alternatives:
-
-1. **Google Cloud Translation API** (Paid, high quality)
-   - Sign up at Google Cloud
-   - Add API key to `.env`
-   - Update `translation.service.ts`
-
-2. **DeepL API** (Paid, very high quality)
-   - Better translations than Google for European languages
-
-3. **Self-hosted LibreTranslate** (Free, requires setup)
-   - More reliable than public instance
-   - Full control over data
-
----
 
 ## 🐛 Troubleshooting
 
-### Port already in use
+### Local Development Issues
+
+**Port already in use:**
 ```bash
-# Kill process on port 3000
-lsof -ti:3000 | xargs kill -9
+# Change PORT in .env file
+PORT=3001
 ```
 
-### CORS errors from Swift
-- Make sure CORS is enabled (already configured)
-- Check that you're using the correct URL
+**Dependencies not installing:**
+```bash
+# Clear npm cache and reinstall
+rm -rf node_modules package-lock.json
+npm install
+```
 
-### Translation not working
-- Check internet connection
-- LibreTranslate public instance might be slow/down
-- Consider using a different translation service
+### Render Deployment Issues
 
----
+**Build fails:**
+- Check that `backend` is set as the Root Directory
+- Verify Build Command is `npm install`
+- Check Node version in `package.json` engines
 
-## 📝 Notes for Your Teammate
+**Service not responding:**
+- Check Render logs for errors
+- Verify environment variables are set
+- Ensure Start Command is `npm start`
 
-1. **Base URL**: Update `baseURL` in Swift code to match where the backend is running
-2. **Error Handling**: Always check the `success` field in responses
-3. **Language Codes**: Use 2-letter ISO codes (en, es, fr, etc.)
-4. **Auto-detection**: Set `sourceLanguage` to "auto" to auto-detect the source language
-5. **Timeout**: Translations might take 1-3 seconds depending on the service
-
----
+**CORS errors from Swift:**
+- CORS is enabled by default for all origins
+- Check that you're using the correct Render URL
 
 ## 📄 License
 
-ISC
+MIT
