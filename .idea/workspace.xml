@@ -4,7 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3a3788db-e838-49f7-8699-499a8265b304" name="Changes" comment="" />
+    <list default="true" id="3a3788db-e838-49f7-8699-499a8265b304" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/GhostTextManager_v2.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -39,7 +42,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "dev.sweep.assistant.data.RecentlyUsedFiles": "backend/server.js;README.md;SWIFT_INTEGRATION_GUIDE.md;SWEEP.md;RENDER_FIX.md;backend/test.js;QUICK_DEPLOY.md;backend/README.md;backend/.gitignore;backend/.env.example",
+    "dev.sweep.assistant.data.RecentlyUsedFiles": "README.md;backend/server.js;SWIFT_INTEGRATION_GUIDE.md;SWEEP.md;RENDER_FIX.md;backend/test.js;QUICK_DEPLOY.md;backend/README.md;backend/.gitignore;backend/.env.example",
     "git-widget-placeholder": "main",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
@@ -72,6 +75,7 @@
       <workItem from="1763440428361" duration="875000" />
       <workItem from="1763442925514" duration="9000" />
       <workItem from="1763443977473" duration="3536000" />
+      <workItem from="1763497087321" duration="6064000" />
     </task>
     <servers />
   </component>

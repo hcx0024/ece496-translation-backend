@@ -99,6 +99,18 @@
             </GhostTextMetaData>
           </value>
         </entry>
+        <entry key="explain what translation api or service this code is using">
+          <value>
+            <GhostTextMetaData>
+              <option name="count" value="1.0" />
+              <option name="timestamps">
+                <list>
+                  <option value="1763497153435" />
+                </list>
+              </option>
+            </GhostTextMetaData>
+          </value>
+        </entry>
         <entry key="hcx@&lt;file_name&gt;&#10;   npm install&#10;cd: no such file or directory: backend&#10;/Users/hcx/.nvm/versions/node/v24.11.0/lib/node_modules/npm/lib/cli/validate-engines.js:29&#10;    throw err&#10;    ^&#10;&#10;Error: ENOENT: no such file or directory, uv_cwd&#10;    at process.wrappedCwd (node:internal/bootstrap/switches/does_own_process_state:142:28)&#10;    at process.cwd (/Users/hcx/.nvm/versions/node/v24.11.0/lib/node_modules/npm/node_modules/graceful-fs/polyfills.js:10:19)&#10;    at new Config (/Users/hcx/.nvm/versions/node/v24.11.0/lib/node_modules/npm/node_modules/@&lt;file_name&gt;&#10;    at new Npm (/Users/hcx/.nvm/versions/node/v24.11.0/lib/node_modules/npm/lib/npm.js:67:19)&#10;    at module.exports (/Users/hcx/.nvm/versions/node/v24.11.0/lib/node_modules/npm/lib/cli/entry.js:14:15)&#10;    at module.exports (/Users/hcx/.nvm/versions/node/v24.11.0/lib/node_modules/npm/lib/cli/validate-engines.js:37:10)&#10;    at module.exports (/Users/hcx/.nvm/versions/node/v24.11.0/lib/node_modules/npm/lib/cli.js:12:31)&#10;    at Object.&lt;anonymous&gt; (/Users/hcx/.nvm/versions/node/v24.11.0/lib/node_modules/npm/bin/npm-cli.js:2:25)&#10;    at Module._compile (node:internal/modules/cjs/loader:1760:14)&#10;    at Object..js (node:internal/modules/cjs/loader:1893:10) {&#10;  errno: -2,&#10;  code: 'ENOENT',&#10;  syscall: 'uv_cwd'&#10;}&#10;&#10;Node.js v24.11.0">
           <value>
             <GhostTextMetaData>
@@ -195,6 +207,18 @@
             </GhostTextMetaData>
           </value>
         </entry>
+        <entry key="i have it on render, but if my FE wants to get translate with example, what should she do">
+          <value>
+            <GhostTextMetaData>
+              <option name="count" value="1.0" />
+              <option name="timestamps">
+                <list>
+                  <option value="1763499651853" />
+                </list>
+              </option>
+            </GhostTextMetaData>
+          </value>
+        </entry>
         <entry key="i realize that ece496 does not owned by me">
           <value>
             <GhostTextMetaData>
@@ -214,6 +238,18 @@
               <option name="timestamps">
                 <list>
                   <option value="1763437055232" />
+                </list>
+              </option>
+            </GhostTextMetaData>
+          </value>
+        </entry>
+        <entry key="if i test words like lamp, sports car, I can only get sentences like i wanna learn the words sports car as example sentences">
+          <value>
+            <GhostTextMetaData>
+              <option name="count" value="1.0" />
+              <option name="timestamps">
+                <list>
+                  <option value="1763588220080" />
                 </list>
               </option>
             </GhostTextMetaData>

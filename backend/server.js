@@ -169,10 +169,10 @@ app.post('/api/translate-with-example', async (req, res) => {
       console.log('Dictionary API failed, will use template sentence');
     }
 
-    // Fallback: Create template sentence if no example found
+    // Fallback: Create contextual sentence if no example found
     if (!exampleSentence) {
-      exampleSentence = `I want to learn the word "${englishWord}".`;
-      exampleSource = 'template';
+      exampleSentence = generateContextualSentence(englishWord);
+      exampleSource = 'generated';
     }
 
     console.log(`Step 2: Example sentence: "${exampleSentence}" (${exampleSource})`);
@@ -279,6 +279,55 @@ app.use((err, req, res, next) => {
     message: process.env.NODE_ENV === 'production' ? 'An error occurred' : err.message
   });
 });
+
+// ============================================
+// 🔧 HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Generate a contextual example sentence for a word/phrase
+ * Creates natural sentences that use the word in context
+ */
+function generateContextualSentence(word) {
+  const lowerWord = word.toLowerCase();
+
+  // Common nouns - use "the" or "a/an"
+  const vowels = ['a', 'e', 'i', 'o', 'u'];
+  const article = vowels.includes(lowerWord[0]) ? 'an' : 'a';
+
+  // For multi-word phrases (like "sports car"), use more natural templates
+  if (word.includes(' ')) {
+    const phraseTemplates = [
+      `I saw a ${word} yesterday.`,
+      `This is a beautiful ${word}.`,
+      `I want to buy a ${word}.`,
+      `Look at that ${word}!`,
+      `Do you like this ${word}?`,
+      `Can you show me the ${word}?`,
+      `I need a ${word}.`,
+      `Where can I find a ${word}?`
+    ];
+    // Use hash of word to consistently pick same template for same word
+    const index = word.length % phraseTemplates.length;
+    return phraseTemplates[index];
+  }
+
+  // For single words, use varied templates
+  const templates = [
+    `I saw ${article} ${word} yesterday.`,
+    `Can you show me the ${word}?`,
+    `This is ${article} ${word}.`,
+    `I need ${article} ${word}.`,
+    `Where is the ${word}?`,
+    `I like this ${word}.`,
+    `Do you have ${article} ${word}?`,
+    `Look at that ${word}!`
+  ];
+
+  // Use hash of word to consistently pick same template for same word
+  const index = word.length % templates.length;
+  return templates[index];
+}
 
 // Start server
 app.listen(PORT, () => {
