@@ -49,6 +49,7 @@ A complete translation API backend built with Node.js/Express, designed to work 
 - ✅ Translates words from English to 15+ languages
 - ✅ Returns translation confidence scores
 - ✅ Provides alternative translations
+- ✅ **Multiple example sentences (3-5 per word)** for better learning 📚
 - ✅ **Get pronunciation audio URLs for any word in any language** 🔊
 - ✅ Lists all supported languages
 - ✅ Health check endpoint for monitoring

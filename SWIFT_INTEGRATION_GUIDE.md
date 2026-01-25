@@ -6,6 +6,47 @@ This guide will teach you how to use the translation API from your Swift app, st
 
 ---
 
+## ⚡ Quick Start (5 Minutes)
+
+### ✅ Checklist
+
+- [ ] **Step 1:** Test API is working (30 seconds)
+  - Open `https://your-api-url.onrender.com/health` in browser
+  - Should see `{"status":"healthy"}` ✅
+
+- [ ] **Step 2:** Copy Swift code (2 minutes)
+  - Scroll to "🍎 Swift Code - Copy & Paste Ready!" section
+  - Copy the entire `TranslationAPI.swift` code block
+  - Create new Swift file in Xcode: `File → New → File → Swift File`
+  - Name it `TranslationAPI.swift` and paste the code
+
+- [ ] **Step 3:** Update API URL (30 seconds)
+  - In `TranslationAPI.swift`, find line: `static let baseURL = "https://ece496-translation-api.onrender.com"`
+  - Replace with your actual Render URL (your teammate will provide this)
+
+- [ ] **Step 4:** Use it in your app! (2 minutes)
+  - Copy any example from "🎯 How to Use in Your Swift App" section
+  - Paste into your SwiftUI view or ViewController
+  - Run the app and test!
+
+**That's it!** You're ready to translate words, get multiple examples, and play pronunciations.
+
+---
+
+## 🎁 What You'll Get
+
+After following this guide, you'll be able to:
+
+✅ **Translate words** to 15+ languages  
+✅ **Get 3-5 example sentences** per word (shows real usage!)  
+✅ **Play pronunciation audio** (native speaker quality)  
+✅ **Handle errors gracefully** (network issues, invalid words, etc.)  
+✅ **Use in SwiftUI or UIKit** (complete examples provided)
+
+**No backend knowledge required!** Just copy, paste, and customize.
+
+---
+
 ## 🌐 What is This API?
 
 Think of the API as a translator service running on the internet. You send it:
@@ -14,8 +55,10 @@ Think of the API as a translator service running on the internet. You send it:
 
 It sends back:
 - The translated word
+- **3-5 example sentences** (NEW! ⭐)
 - Confidence score
 - Alternative translations
+- Pronunciation audio URL
 
 ---
 
@@ -81,6 +124,8 @@ You should see:
 
 ## 📚 Available API Endpoints
 
+> **💡 Tip:** You don't need to understand all endpoints. Just use the examples below - they work out of the box!
+
 ### 1. Health Check
 **What it does:** Checks if the API is running
 
@@ -133,8 +178,8 @@ You should see:
 
 ---
 
-### 3. Translate Word with Example Sentence (NEW! ⭐)
-**What it does:** Translates a word AND provides an example sentence in the target language
+### 3. Translate Word with Multiple Example Sentences (RECOMMENDED! ⭐)
+**What it does:** Translates a word AND provides 3-5 example sentences in the target language
 
 **URL:** `POST /api/translate-with-example`
 
@@ -153,6 +198,23 @@ You should see:
   "original": "hello",
   "translated": "hola",
   "targetLanguage": "es",
+  "exampleSentences": [
+    {
+      "original": "Hello, everyone.",
+      "translated": "Hola a todos.",
+      "source": "dictionary"
+    },
+    {
+      "original": "Hello? Is anyone there?",
+      "translated": "Hola, ¿hay alguien ahí?",
+      "source": "dictionary"
+    },
+    {
+      "original": "Hello! What's going on here?",
+      "translated": "¡Hola! ¿Qué está pasando aquí?",
+      "source": "dictionary"
+    }
+  ],
   "exampleSentence": {
     "original": "Hello, everyone.",
     "translated": "Hola a todos.",
@@ -164,10 +226,14 @@ You should see:
 ```
 
 **How it works:**
-1. Gets an English example sentence from a real dictionary
+1. Gets 3-5 English example sentences from a real dictionary (or generates contextual ones)
 2. Translates the word to your target language
-3. Translates the example sentence to your target language
-4. Returns both the word and sentence in the target language!
+3. Translates all example sentences to your target language
+4. Returns the word and multiple example sentences in the target language!
+
+**Note:** The response includes:
+- `exampleSentences` (array) - **NEW!** Contains 3-5 example sentences
+- `exampleSentence` (object) - **Backward compatible** - Contains the first example for compatibility
 
 ---
 
@@ -263,7 +329,8 @@ struct TranslationWithExampleResponse: Codable {
     let original: String
     let translated: String
     let targetLanguage: String
-    let exampleSentence: ExampleSentence
+    let exampleSentences: [ExampleSentence]? // NEW! Array of 3-5 examples
+    let exampleSentence: ExampleSentence? // Backward compatible - first example
     let confidence: Double
     let timestamp: String
 }
@@ -390,7 +457,7 @@ class TranslationAPI {
         }.resume()
     }
 
-    // MARK: - Translate Word with Example Sentence (NEW!)
+    // MARK: - Translate Word with Multiple Example Sentences (NEW!)
     static func translateWithExample(
         word: String,
         to language: String,
@@ -517,23 +584,35 @@ class TranslationAPI {
 
 ## 🎯 How to Use in Your Swift App
 
-### Example 1: Translate a Word with Example Sentence (RECOMMENDED! ⭐)
+### Example 1: Translate a Word with Multiple Example Sentences (RECOMMENDED! ⭐)
 
 ```swift
-// Translate "hello" to Spanish with example sentence
+// Translate "hello" to Spanish with multiple example sentences
 TranslationAPI.translateWithExample(word: "hello", to: "es") { result in
     switch result {
     case .success(let translation):
         print("Original: \(translation.original)")
         print("Translated: \(translation.translated)")
-        print("Example (English): \(translation.exampleSentence.original)")
-        print("Example (Spanish): \(translation.exampleSentence.translated)")
-
-        // Update your UI on the main thread
-        DispatchQueue.main.async {
-            // Update your labels with both word and example
-            // wordLabel.text = translation.translated
-            // exampleLabel.text = translation.exampleSentence.translated
+        
+        // NEW! Access multiple example sentences
+        if let examples = translation.exampleSentences {
+            print("Found \(examples.count) example sentences:")
+            for (index, example) in examples.enumerated() {
+                print("  \(index + 1). \(example.original) → \(example.translated)")
+            }
+            
+            // Update your UI on the main thread
+            DispatchQueue.main.async {
+                // Show first example
+                // wordLabel.text = translation.translated
+                // exampleLabel.text = examples[0].translated
+                
+                // Or show all examples in a scrollable list
+                // examplesListView.examples = examples
+            }
+        } else if let singleExample = translation.exampleSentence {
+            // Backward compatibility - use single example if array not available
+            print("Example: \(singleExample.original) → \(singleExample.translated)")
         }
 
     case .failure(let error):
@@ -690,7 +769,7 @@ import AVFoundation
 struct TranslationView: View {
     @State private var inputWord = ""
     @State private var translatedWord = ""
-    @State private var exampleSentence = ""
+    @State private var exampleSentences: [ExampleSentence] = [] // NEW! Multiple examples
     @State private var selectedLanguage = "es"
     @State private var isLoading = false
     @State private var errorMessage = ""
@@ -771,15 +850,33 @@ struct TranslationView: View {
                         }
                     }
 
-                    // Example sentence
-                    if !exampleSentence.isEmpty {
+                    // Multiple Example Sentences (NEW! ⭐)
+                    if !exampleSentences.isEmpty {
                         Divider()
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("Example Sentence:")
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Example Sentences (\(exampleSentences.count)):")
                                 .font(.headline)
-                            Text(exampleSentence)
-                                .font(.body)
-                                .foregroundColor(.blue)
+                            
+                            // Scrollable list of examples
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    ForEach(Array(exampleSentences.enumerated()), id: \.offset) { index, example in
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("\(index + 1). \(example.original)")
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                            Text(example.translated)
+                                                .font(.body)
+                                                .foregroundColor(.blue)
+                                        }
+                                        .padding(.vertical, 4)
+                                        .padding(.horizontal, 8)
+                                        .background(Color.blue.opacity(0.05))
+                                        .cornerRadius(5)
+                                    }
+                                }
+                            }
+                            .frame(maxHeight: 200) // Limit height for scrolling
                         }
                     }
                 }
@@ -806,9 +903,9 @@ struct TranslationView: View {
         isLoading = true
         errorMessage = ""
         translatedWord = ""
-        exampleSentence = ""
+        exampleSentences = []
 
-        // Use the new endpoint with example sentences!
+        // Use the new endpoint with multiple example sentences!
         TranslationAPI.translateWithExample(word: inputWord, to: selectedLanguage) { result in
             DispatchQueue.main.async {
                 isLoading = false
@@ -816,7 +913,14 @@ struct TranslationView: View {
                 switch result {
                 case .success(let translation):
                     translatedWord = translation.translated
-                    exampleSentence = translation.exampleSentence.translated
+                    
+                    // NEW! Get all example sentences (3-5 examples)
+                    if let examples = translation.exampleSentences, !examples.isEmpty {
+                        exampleSentences = examples
+                    } else if let singleExample = translation.exampleSentence {
+                        // Backward compatibility - convert single to array
+                        exampleSentences = [singleExample]
+                    }
 
                 case .failure(let error):
                     errorMessage = "Error: \(error.localizedDescription)"
@@ -921,7 +1025,9 @@ Before submitting your app, test these:
 
 - [ ] Health check works
 - [ ] Can translate a simple word (e.g., "hello" to Spanish)
+- [ ] **Multiple example sentences appear** (should see 3-5 examples)
 - [ ] Can get list of supported languages
+- [ ] Pronunciation audio plays when button is tapped
 - [ ] Error handling works (try with no internet)
 - [ ] UI updates correctly after translation
 - [ ] Loading indicator shows while translating
@@ -942,11 +1048,11 @@ Before submitting your app, test these:
 
 **API Base URL:** `https://ece496-translation-api.onrender.com`
 
-**Translate with Example (RECOMMENDED):** `POST /api/translate-with-example`
+**Translate with Multiple Examples (RECOMMENDED):** `POST /api/translate-with-example`
 ```json
 { "word": "hello", "targetLanguage": "es" }
 ```
-Returns: word + example sentence in target language
+Returns: word + 3-5 example sentences in target language
 
 **Translate (Simple):** `POST /api/translate`
 ```json

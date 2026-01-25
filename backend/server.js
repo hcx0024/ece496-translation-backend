@@ -136,9 +136,9 @@ app.post('/api/translate-with-example', async (req, res) => {
     // We'll use the word as-is for dictionary lookup first
     console.log(`Step 1: Using "${englishWord}" for dictionary lookup`);
 
-    // Step 2: Get English example sentence from Free Dictionary API
-    let exampleSentence = null;
-    let exampleSource = 'template';
+    // Step 2: Get multiple English example sentences from Free Dictionary API
+    let exampleSentences = [];
+    let wordType = null; // noun, verb, adjective, etc.
 
     try {
       const dictionaryResponse = await axios.get(
@@ -146,37 +146,101 @@ app.post('/api/translate-with-example', async (req, res) => {
         { timeout: 5000 }
       );
 
-      // Extract first example sentence found
+      // Extract multiple example sentences and word type
       if (dictionaryResponse.data && Array.isArray(dictionaryResponse.data)) {
+        const allExamples = [];
+        
         for (const entry of dictionaryResponse.data) {
+          // Extract word type (part of speech)
           if (entry.meanings && Array.isArray(entry.meanings)) {
             for (const meaning of entry.meanings) {
+              // Get part of speech (noun, verb, adjective, etc.)
+              if (meaning.partOfSpeech && !wordType) {
+                wordType = meaning.partOfSpeech;
+              }
+              
+              // Collect all example sentences
               if (meaning.definitions && Array.isArray(meaning.definitions)) {
                 for (const definition of meaning.definitions) {
                   if (definition.example) {
-                    exampleSentence = definition.example;
-                    exampleSource = 'dictionary';
-                    break;
+                    allExamples.push({
+                      example: definition.example,
+                      definition: definition.definition || ''
+                    });
                   }
                 }
-                if (exampleSentence) break;
               }
             }
-            if (exampleSentence) break;
           }
+        }
+        
+        // Select the best 3-5 examples: prefer shorter, clearer sentences
+        if (allExamples.length > 0) {
+          // Sort by length (prefer shorter sentences) and quality
+          allExamples.sort((a, b) => {
+            const aLength = a.example.length;
+            const bLength = b.example.length;
+            const lowerWord = englishWord.toLowerCase();
+            const aLower = a.example.toLowerCase();
+            const bLower = b.example.toLowerCase();
+            
+            // Check for exact word match (with word boundaries for better matching)
+            const aHasExact = aLower.includes(` ${lowerWord} `) || 
+                             aLower.startsWith(`${lowerWord} `) || 
+                             aLower.endsWith(` ${lowerWord}`) ||
+                             aLower === lowerWord;
+            const bHasExact = bLower.includes(` ${lowerWord} `) || 
+                             bLower.startsWith(`${lowerWord} `) || 
+                             bLower.endsWith(` ${lowerWord}`) ||
+                             bLower === lowerWord;
+            
+            const aHasWord = aLower.includes(lowerWord);
+            const bHasWord = bLower.includes(lowerWord);
+            
+            // Prioritize exact word matches first
+            if (aHasExact && !bHasExact) return -1;
+            if (!aHasExact && bHasExact) return 1;
+            
+            // Then prioritize sentences that contain the word
+            if (aHasWord && !bHasWord) return -1;
+            if (!aHasWord && bHasWord) return 1;
+            
+            // Then prefer shorter sentences (but not too short - at least 15 chars)
+            if (aLength < 15 && bLength >= 15) return 1;
+            if (bLength < 15 && aLength >= 15) return -1;
+            
+            return aLength - bLength;
+          });
+          
+          // Take top 5 examples (or all if less than 5)
+          const maxExamples = Math.min(5, allExamples.length);
+          exampleSentences = allExamples.slice(0, maxExamples).map(e => ({
+            original: e.example,
+            source: 'dictionary'
+          }));
         }
       }
     } catch (dictError) {
-      console.log('Dictionary API failed, will use template sentence');
+      console.log('Dictionary API failed, will use template sentences');
     }
 
-    // Fallback: Create contextual sentence if no example found
-    if (!exampleSentence) {
-      exampleSentence = generateContextualSentence(englishWord);
-      exampleSource = 'generated';
+    // Fallback: Create contextual sentences if no examples found
+    if (exampleSentences.length === 0) {
+      // Generate 3 different contextual sentences
+      const generatedExamples = [];
+      for (let i = 0; i < 3; i++) {
+        // Use different templates by varying the word slightly for hash
+        const tempWord = englishWord + (i > 0 ? String(i) : '');
+        const sentence = generateContextualSentence(englishWord, wordType, i);
+        generatedExamples.push({
+          original: sentence,
+          source: 'generated'
+        });
+      }
+      exampleSentences = generatedExamples;
     }
 
-    console.log(`Step 2: Example sentence: "${exampleSentence}" (${exampleSource})`);
+    console.log(`Step 2: Found ${exampleSentences.length} example sentences`);
 
     // Step 3: Translate the word to target language (from English)
     const wordTranslationResponse = await axios.get('https://api.mymemory.translated.net/get', {
@@ -190,29 +254,50 @@ app.post('/api/translate-with-example', async (req, res) => {
     const translatedWord = wordTranslationResponse.data?.responseData?.translatedText || englishWord;
     console.log(`Step 3: "${englishWord}" → "${translatedWord}" (${targetLanguage})`);
 
-    // Step 4: Translate the example sentence to target language
-    const sentenceTranslationResponse = await axios.get('https://api.mymemory.translated.net/get', {
-      params: {
-        q: exampleSentence,
-        langpair: `en|${targetLanguage}`
-      },
-      timeout: 10000
-    });
+    // Step 4: Translate all example sentences to target language
+    console.log(`Step 4: Translating ${exampleSentences.length} example sentences to ${targetLanguage}`);
+    const translatedExamples = await Promise.all(
+      exampleSentences.map(async (example) => {
+        try {
+          const sentenceTranslationResponse = await axios.get('https://api.mymemory.translated.net/get', {
+            params: {
+              q: example.original,
+              langpair: `en|${targetLanguage}`
+            },
+            timeout: 10000
+          });
+          
+          return {
+            original: example.original,
+            translated: sentenceTranslationResponse.data?.responseData?.translatedText || example.original,
+            source: example.source
+          };
+        } catch (error) {
+          console.log(`Failed to translate example: "${example.original}"`);
+          return {
+            original: example.original,
+            translated: example.original, // Fallback to original if translation fails
+            source: example.source
+          };
+        }
+      })
+    );
 
-    const translatedSentence = sentenceTranslationResponse.data?.responseData?.translatedText || exampleSentence;
-    console.log(`Step 4: Sentence translated to ${targetLanguage}`);
+    console.log(`Step 4: Translated ${translatedExamples.length} example sentences`);
 
-    // Return complete response
+    // Return complete response with multiple examples
     res.json({
       success: true,
       original: word,
       translated: translatedWord,
       targetLanguage: targetLanguage,
-      exampleSentence: {
-        original: exampleSentence,
-        translated: translatedSentence,
-        source: exampleSource
-      },
+      exampleSentences: translatedExamples,
+      // Keep backward compatibility - include first example as exampleSentence
+      exampleSentence: translatedExamples.length > 0 ? {
+        original: translatedExamples[0].original,
+        translated: translatedExamples[0].translated,
+        source: translatedExamples[0].source
+      } : null,
       confidence: wordTranslationResponse.data?.responseData?.match || 0,
       timestamp: new Date().toISOString()
     });
@@ -359,16 +444,38 @@ app.use((err, req, res, next) => {
 
 /**
  * Generate a contextual example sentence for a word/phrase
- * Creates natural sentences that use the word in context
+ * Creates natural sentences that use the word in context based on word type
+ * @param {string} word - The word to generate sentence for
+ * @param {string} wordType - Part of speech (noun, verb, adjective, etc.)
+ * @param {number} variationIndex - Index to vary the template selection
  */
-function generateContextualSentence(word) {
+function generateContextualSentence(word, wordType = null, variationIndex = 0) {
   const lowerWord = word.toLowerCase();
-
-  // Common nouns - use "the" or "a/an"
   const vowels = ['a', 'e', 'i', 'o', 'u'];
-  const article = vowels.includes(lowerWord[0]) ? 'an' : 'a';
+  const startsWithVowel = vowels.includes(lowerWord[0]);
+  const article = startsWithVowel ? 'an' : 'a';
 
-  // For multi-word phrases (like "sports car"), use more natural templates
+  // Detect word type from common patterns if not provided
+  if (!wordType) {
+    // Common verb endings
+    if (lowerWord.endsWith('ing') || lowerWord.endsWith('ed') || lowerWord.endsWith('ize') || lowerWord.endsWith('ate')) {
+      wordType = 'verb';
+    }
+    // Common adjective endings
+    else if (lowerWord.endsWith('ful') || lowerWord.endsWith('less') || lowerWord.endsWith('ous') || lowerWord.endsWith('ive') || lowerWord.endsWith('able')) {
+      wordType = 'adjective';
+    }
+    // Common noun endings
+    else if (lowerWord.endsWith('tion') || lowerWord.endsWith('sion') || lowerWord.endsWith('ment') || lowerWord.endsWith('ness')) {
+      wordType = 'noun';
+    }
+    // Default to noun for single words
+    else {
+      wordType = 'noun';
+    }
+  }
+
+  // For multi-word phrases
   if (word.includes(' ')) {
     const phraseTemplates = [
       `I saw a ${word} yesterday.`,
@@ -380,25 +487,57 @@ function generateContextualSentence(word) {
       `I need a ${word}.`,
       `Where can I find a ${word}?`
     ];
-    // Use hash of word to consistently pick same template for same word
     const index = word.length % phraseTemplates.length;
     return phraseTemplates[index];
   }
 
-  // For single words, use varied templates
-  const templates = [
-    `I saw ${article} ${word} yesterday.`,
-    `Can you show me the ${word}?`,
-    `This is ${article} ${word}.`,
-    `I need ${article} ${word}.`,
-    `Where is the ${word}?`,
-    `I like this ${word}.`,
-    `Do you have ${article} ${word}?`,
-    `Look at that ${word}!`
-  ];
+  // Generate templates based on word type
+  let templates = [];
 
-  // Use hash of word to consistently pick same template for same word
-  const index = word.length % templates.length;
+  if (wordType === 'verb') {
+    // Verb templates - more natural verb usage
+    templates = [
+      `I ${word} every day.`,
+      `Can you ${word}?`,
+      `Let's ${word} together.`,
+      `I want to ${word}.`,
+      `She likes to ${word}.`,
+      `We should ${word} more often.`,
+      `I need to ${word} now.`,
+      `They will ${word} tomorrow.`
+    ];
+  } else if (wordType === 'adjective') {
+    // Adjective templates - describe something
+    templates = [
+      `This is very ${word}.`,
+      `That's so ${word}!`,
+      `I feel ${word} today.`,
+      `It looks ${word}.`,
+      `She seems ${word}.`,
+      `The weather is ${word}.`,
+      `This book is ${word}.`,
+      `He is ${word}.`
+    ];
+  } else {
+    // Noun templates (default) - more varied and natural
+    templates = [
+      `I saw ${article} ${word} yesterday.`,
+      `Can you show me the ${word}?`,
+      `This is ${article} ${word}.`,
+      `I need ${article} ${word}.`,
+      `Where is the ${word}?`,
+      `I like this ${word}.`,
+      `Do you have ${article} ${word}?`,
+      `Look at that ${word}!`,
+      `The ${word} is here.`,
+      `I bought ${article} ${word}.`,
+      `This ${word} is beautiful.`,
+      `I found the ${word}.`
+    ];
+  }
+
+  // Use hash of word + variation index to get different templates
+  const index = (word.length + variationIndex) % templates.length;
   return templates[index];
 }
 
