@@ -35,6 +35,7 @@ app.get('/', (req, res) => {
       health: 'GET /health',
       translate: 'POST /api/translate',
       translateWithExample: 'POST /api/translate-with-example',
+      pronunciation: 'POST /api/pronunciation',
       languages: 'GET /api/languages'
     }
   });
@@ -234,6 +235,76 @@ app.post('/api/translate-with-example', async (req, res) => {
   }
 });
 
+// Pronunciation endpoint - Returns audio URL for text-to-speech
+app.post('/api/pronunciation', async (req, res) => {
+  try {
+    const { word, language } = req.body;
+
+    // Validation
+    if (!word || !language) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        message: 'Both "word" and "language" are required',
+        example: {
+          word: 'hello',
+          language: 'es'
+        }
+      });
+    }
+
+    console.log(`Getting pronunciation for "${word}" in ${language}`);
+
+    // Map language codes to Google TTS language codes
+    const languageMap = {
+      'es': 'es',      // Spanish
+      'fr': 'fr',      // French
+      'de': 'de',      // German
+      'it': 'it',      // Italian
+      'pt': 'pt',      // Portuguese
+      'ru': 'ru',      // Russian
+      'ja': 'ja',      // Japanese
+      'ko': 'ko',      // Korean
+      'zh-CN': 'zh-CN', // Chinese (Simplified)
+      'zh-TW': 'zh-TW', // Chinese (Traditional)
+      'ar': 'ar',      // Arabic
+      'hi': 'hi',      // Hindi
+      'nl': 'nl',      // Dutch
+      'pl': 'pl',      // Polish
+      'tr': 'tr',      // Turkish
+      'en': 'en'       // English
+    };
+
+    const ttsLanguage = languageMap[language] || language;
+
+    // Encode the word for URL
+    const encodedWord = encodeURIComponent(word);
+
+    // Google Translate TTS endpoint (free, no API key required)
+    // This generates a direct audio URL that can be used in iOS AVPlayer
+    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${ttsLanguage}&client=tw-ob&q=${encodedWord}`;
+
+    // Return the audio URL
+    res.json({
+      success: true,
+      word: word,
+      language: language,
+      audioUrl: audioUrl,
+      format: 'mp3',
+      source: 'Google Translate TTS',
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Pronunciation error:', error.message);
+
+    res.status(500).json({
+      error: 'Pronunciation failed',
+      message: error.message || 'An error occurred while getting pronunciation',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Get supported languages
 app.get('/api/languages', (req, res) => {
   res.json({
@@ -266,6 +337,8 @@ app.use((req, res) => {
     availableEndpoints: {
       health: 'GET /health',
       translate: 'POST /api/translate',
+      translateWithExample: 'POST /api/translate-with-example',
+      pronunciation: 'POST /api/pronunciation',
       languages: 'GET /api/languages'
     }
   });

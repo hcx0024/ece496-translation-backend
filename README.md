@@ -49,6 +49,7 @@ A complete translation API backend built with Node.js/Express, designed to work 
 - ✅ Translates words from English to 15+ languages
 - ✅ Returns translation confidence scores
 - ✅ Provides alternative translations
+- ✅ **Get pronunciation audio URLs for any word in any language** 🔊
 - ✅ Lists all supported languages
 - ✅ Health check endpoint for monitoring
 - ✅ CORS enabled for web/mobile apps
@@ -75,6 +76,18 @@ Content-Type: application/json
 }
 ```
 Translate a word to another language.
+
+### Get Pronunciation Audio URL 🔊
+```
+POST /api/pronunciation
+Content-Type: application/json
+
+{
+  "word": "hola",
+  "language": "es"
+}
+```
+Get an audio URL to play pronunciation of a word in any language. Returns a URL that can be used with iOS AVPlayer.
 
 ### Get Languages
 ```

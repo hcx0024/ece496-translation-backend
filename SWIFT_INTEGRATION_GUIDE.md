@@ -171,7 +171,40 @@ You should see:
 
 ---
 
-### 4. Get Supported Languages
+### 4. Get Pronunciation Audio URL (NEW! 🔊)
+**What it does:** Gets an audio URL to play pronunciation of a word in any language
+
+**URL:** `POST /api/pronunciation`
+
+**You need to send:**
+```json
+{
+  "word": "hola",
+  "language": "es"
+}
+```
+
+**You will receive:**
+```json
+{
+  "success": true,
+  "word": "hola",
+  "language": "es",
+  "audioUrl": "https://translate.google.com/translate_tts?...",
+  "format": "mp3",
+  "source": "Google Translate TTS",
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**How to use in Swift:**
+1. Call the API to get the `audioUrl`
+2. Use `AVPlayer` to play the audio URL
+3. The audio will pronounce the word in the specified language!
+
+---
+
+### 5. Get Supported Languages
 **What it does:** Shows all languages you can translate to
 
 **URL:** `GET /api/languages`
@@ -255,6 +288,21 @@ struct HealthResponse: Codable {
     let status: String
     let timestamp: String
     let uptime: Double
+}
+
+struct PronunciationRequest: Codable {
+    let word: String
+    let language: String
+}
+
+struct PronunciationResponse: Codable {
+    let success: Bool
+    let word: String
+    let language: String
+    let audioUrl: String
+    let format: String
+    let source: String
+    let timestamp: String
 }
 
 // MARK: - API Service
@@ -390,6 +438,50 @@ class TranslationAPI {
         }.resume()
     }
 
+    // MARK: - Get Pronunciation Audio URL
+    static func getPronunciation(
+        word: String,
+        language: String,
+        completion: @escaping (Result<PronunciationResponse, Error>) -> Void
+    ) {
+        guard let url = URL(string: "\(baseURL)/api/pronunciation") else {
+            completion(.failure(NSError(domain: "Invalid URL", code: -1)))
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = PronunciationRequest(word: word, language: language)
+
+        do {
+            request.httpBody = try JSONEncoder().encode(body)
+        } catch {
+            completion(.failure(error))
+            return
+        }
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+
+            guard let data = data else {
+                completion(.failure(NSError(domain: "No data received", code: -1)))
+                return
+            }
+
+            do {
+                let result = try JSONDecoder().decode(PronunciationResponse.self, from: data)
+                completion(.success(result))
+            } catch {
+                completion(.failure(error))
+            }
+        }.resume()
+    }
+
     // MARK: - Health Check
     static func checkHealth(
         completion: @escaping (Result<HealthResponse, Error>) -> Void
@@ -506,7 +598,70 @@ TranslationAPI.getSupportedLanguages { result in
 }
 ```
 
-### Example 4: Check if API is Working
+### Example 4: Get Pronunciation Audio URL (NEW! 🔊)
+
+```swift
+import AVFoundation
+
+// Get pronunciation audio URL for "hola" in Spanish
+TranslationAPI.getPronunciation(word: "hola", language: "es") { result in
+    switch result {
+    case .success(let pronunciation):
+        print("Audio URL: \(pronunciation.audioUrl)")
+        
+        // Play the audio using AVPlayer
+        DispatchQueue.main.async {
+            guard let url = URL(string: pronunciation.audioUrl) else { return }
+            let player = AVPlayer(url: url)
+            player.play()
+            
+            // Or use AVAudioPlayer for more control
+            // let player = AVAudioPlayer()
+            // player.play()
+        }
+        
+    case .failure(let error):
+        print("Failed to get pronunciation: \(error.localizedDescription)")
+    }
+}
+```
+
+**Complete example with AVPlayer:**
+```swift
+import AVFoundation
+
+class PronunciationPlayer {
+    private var player: AVPlayer?
+    
+    func playPronunciation(word: String, language: String) {
+        TranslationAPI.getPronunciation(word: word, language: language) { [weak self] result in
+            switch result {
+            case .success(let pronunciation):
+                guard let audioURL = URL(string: pronunciation.audioUrl) else {
+                    print("Invalid audio URL")
+                    return
+                }
+                
+                DispatchQueue.main.async {
+                    self?.player = AVPlayer(url: audioURL)
+                    self?.player?.play()
+                }
+                
+            case .failure(let error):
+                print("Error: \(error.localizedDescription)")
+            }
+        }
+    }
+}
+
+// Usage:
+let pronunciationPlayer = PronunciationPlayer()
+pronunciationPlayer.playPronunciation(word: "hola", language: "es")
+```
+
+---
+
+### Example 5: Check if API is Working
 
 ```swift
 TranslationAPI.checkHealth { result in
@@ -530,6 +685,7 @@ Here's a complete SwiftUI view you can use:
 
 ```swift
 import SwiftUI
+import AVFoundation
 
 struct TranslationView: View {
     @State private var inputWord = ""
@@ -538,6 +694,7 @@ struct TranslationView: View {
     @State private var selectedLanguage = "es"
     @State private var isLoading = false
     @State private var errorMessage = ""
+    @State private var player: AVPlayer?
 
     let languages = [
         ("es", "Spanish"),
@@ -590,14 +747,28 @@ struct TranslationView: View {
             // Result
             if !translatedWord.isEmpty {
                 VStack(alignment: .leading, spacing: 15) {
-                    // Translated word
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Translation:")
-                            .font(.headline)
-                        Text(translatedWord)
-                            .font(.title)
-                            .bold()
-                            .foregroundColor(.green)
+                    // Translated word with pronunciation button
+                    HStack {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Translation:")
+                                .font(.headline)
+                            Text(translatedWord)
+                                .font(.title)
+                                .bold()
+                                .foregroundColor(.green)
+                        }
+                        
+                        Spacer()
+                        
+                        // Pronunciation button
+                        Button(action: playPronunciation) {
+                            Image(systemName: "speaker.wave.2.fill")
+                                .font(.title2)
+                                .foregroundColor(.blue)
+                                .padding(10)
+                                .background(Color.blue.opacity(0.1))
+                                .clipShape(Circle())
+                        }
                     }
 
                     // Example sentence
@@ -650,6 +821,22 @@ struct TranslationView: View {
                 case .failure(let error):
                     errorMessage = "Error: \(error.localizedDescription)"
                 }
+            }
+        }
+    }
+    
+    func playPronunciation() {
+        // Play pronunciation of the translated word
+        TranslationAPI.getPronunciation(word: translatedWord, language: selectedLanguage) { result in
+            switch result {
+            case .success(let pronunciation):
+                guard let audioURL = URL(string: pronunciation.audioUrl) else { return }
+                DispatchQueue.main.async {
+                    self.player = AVPlayer(url: audioURL)
+                    self.player?.play()
+                }
+            case .failure(let error):
+                print("Pronunciation error: \(error.localizedDescription)")
             }
         }
     }
@@ -766,6 +953,12 @@ Returns: word + example sentence in target language
 { "word": "hello", "targetLanguage": "es" }
 ```
 Returns: just the translated word
+
+**Get Pronunciation Audio (NEW! 🔊):** `POST /api/pronunciation`
+```json
+{ "word": "hola", "language": "es" }
+```
+Returns: audio URL to play pronunciation
 
 **Languages:** `GET /api/languages`
 
