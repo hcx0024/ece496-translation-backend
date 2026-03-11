@@ -6,13 +6,14 @@ A complete translation API backend built with Node.js/Express, designed to work 
 
 ## 📚 Documentation
 
-| Document | Purpose | For Who |
-|----------|---------|---------|
-| **[QUICK_DEPLOY.md](QUICK_DEPLOY.md)** | Deploy to Render in 5 minutes | Backend developers |
-| **[RENDER_FIX.md](RENDER_FIX.md)** | Fix deployment errors | Backend developers |
-| **[SWIFT_INTEGRATION_GUIDE.md](SWIFT_INTEGRATION_GUIDE.md)** | Complete Swift integration guide | Swift/iOS developers |
-| **[backend/README.md](backend/README.md)** | Full API documentation | All developers |
-| **[SWEEP.md](SWEEP.md)** | Quick command reference | All developers |
+**For the iOS / frontend developer (start here):**
+
+| Document | Purpose |
+|----------|---------|
+| **[iOS_INTEGRATION_GUIDE.md](iOS_INTEGRATION_GUIDE.md)** | **Single guide:** how to implement the API in Swift (beginner-friendly, copy-paste ready) |
+
+**For backend / other docs:** see the [docs/](docs/) folder (deployment, architecture, presentations, etc.).  
+Backend API details: [backend/README.md](backend/README.md).
 
 ---
 
@@ -35,12 +36,11 @@ A complete translation API backend built with Node.js/Express, designed to work 
    - Follow [QUICK_DEPLOY.md](QUICK_DEPLOY.md)
    - **Important:** Set Root Directory to `backend`
 
-### For Swift Developers
+### For iOS / Swift Developers
 
-1. **Read the guide:** [SWIFT_INTEGRATION_GUIDE.md](SWIFT_INTEGRATION_GUIDE.md)
-2. **Copy the Swift code** from the guide
-3. **Update the API URL** with your Render deployment URL
-4. **Start building!**
+1. **Open the guide:** [iOS_INTEGRATION_GUIDE.md](iOS_INTEGRATION_GUIDE.md)
+2. Follow the steps: add the `TranslationAPI.swift` file, set the API URL, then use the examples in your app
+3. **API URL:** Get the real base URL from the backend teammate and set it in `TranslationAPI.baseURL`
 
 ---
 
@@ -102,7 +102,7 @@ Get list of all supported languages.
 
 Spanish, French, German, Italian, Portuguese, Russian, Japanese, Korean, Chinese (Simplified & Traditional), Arabic, Hindi, Dutch, Polish, Turkish
 
-See full list in [SWIFT_INTEGRATION_GUIDE.md](SWIFT_INTEGRATION_GUIDE.md)
+See full list in [iOS_INTEGRATION_GUIDE.md](iOS_INTEGRATION_GUIDE.md)
 
 ---
 
@@ -136,7 +136,7 @@ TranslationAPI.translate(word: "hello", to: "es") { result in
 }
 ```
 
-Full Swift code available in [SWIFT_INTEGRATION_GUIDE.md](SWIFT_INTEGRATION_GUIDE.md)
+Full Swift code and usage in [iOS_INTEGRATION_GUIDE.md](iOS_INTEGRATION_GUIDE.md)
 
 ---
 
@@ -160,10 +160,10 @@ All 5 tests should pass:
 ## 🐛 Troubleshooting
 
 ### Deployment Failed?
-→ Check [RENDER_FIX.md](RENDER_FIX.md)
+→ Check [docs/RENDER_FIX.md](docs/RENDER_FIX.md)
 
-### Swift Integration Issues?
-→ Check [SWIFT_INTEGRATION_GUIDE.md](SWIFT_INTEGRATION_GUIDE.md) - Section "Common Issues"
+### iOS Integration Issues?
+→ Check [iOS_INTEGRATION_GUIDE.md](iOS_INTEGRATION_GUIDE.md) — section “If something goes wrong”
 
 ### API Not Responding?
 1. Check health endpoint: `https://your-app.onrender.com/health`
@@ -176,38 +176,33 @@ All 5 tests should pass:
 
 ```
 ece496-project/
+├── iOS_INTEGRATION_GUIDE.md     # For frontend: single Swift integration guide
+├── README.md                     # This file
 ├── backend/                      # Backend API
-│   ├── server.js                # Main server file
-│   ├── package.json             # Dependencies
-│   ├── test.js                  # Test suite
-│   └── README.md                # Backend docs
-├── QUICK_DEPLOY.md              # Deployment guide
-├── RENDER_FIX.md                # Deployment troubleshooting
-├── SWIFT_INTEGRATION_GUIDE.md   # Swift developer guide
-├── SWEEP.md                     # Command reference
-└── README.md                    # This file
+│   ├── server.js
+│   ├── package.json
+│   ├── test.js
+│   └── README.md
+└── docs/                         # Other docs (deploy, architecture, etc.)
+    ├── QUICK_DEPLOY.md
+    ├── RENDER_FIX.md
+    └── ...
 ```
 
 ---
 
-## 🎓 For Your Teammate (Swift Developer)
+## 🎓 For Your Teammate (iOS / Frontend)
 
 **Send them this:**
 
-> Hey! The translation API is ready. Here's what you need:
+> The API is ready. Use **one guide only:** [iOS_INTEGRATION_GUIDE.md](iOS_INTEGRATION_GUIDE.md)
 >
-> 1. **Read this guide:** [SWIFT_INTEGRATION_GUIDE.md](SWIFT_INTEGRATION_GUIDE.md)
-> 2. **API URL:** `https://your-app-name.onrender.com` (I'll send you the actual URL)
-> 3. **Test it first:** Open `https://your-app-name.onrender.com/health` in Safari
-> 4. **Copy the Swift code** from the guide - it's ready to use!
+> 1. Open that file and follow the steps in order.
+> 2. Add the `TranslationAPI.swift` file (copy-paste from the guide).
+> 3. Set the API URL in that file (I’ll send you the real URL).
+> 4. Use the code examples in the guide to call translate, examples, and pronunciation.
 >
-> The guide has everything you need, including:
-> - Complete Swift code (just copy & paste)
-> - SwiftUI example app
-> - How to test without writing code
-> - Common issues and solutions
->
-> Let me know if you have questions!
+> Everything is in that one doc — no backend knowledge needed.
 
 ---
 
@@ -224,7 +219,7 @@ MIT
 ✅ Ready for deployment
 ✅ Swift integration guide ready
 
-**Next Step:** Deploy to Render using [QUICK_DEPLOY.md](QUICK_DEPLOY.md)
+**Next Step:** Deploy to Render using [docs/QUICK_DEPLOY.md](docs/QUICK_DEPLOY.md)
 
 ---
 
