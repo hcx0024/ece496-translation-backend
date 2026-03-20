@@ -449,27 +449,91 @@ app.use((err, req, res, next) => {
 // ============================================
 
 /**
+ * Strip leading French articles from a segment (for picking a dictionary lemma).
+ */
+function stripFrenchLeadingArticles(phrase) {
+  let s = String(phrase || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^(l'|l’|la |le |les )/i, '');
+  return s.trim();
+}
+
+/**
+ * When MT returns merged variants (e.g. "climatisation/climatiseur/le climatiseur"),
+ * pick one headword for gender/plural so the API never returns a "multi-plural" string.
+ */
+function pickFrenchLemmaForGrammar(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return '';
+
+  const segments = text
+    .split(/[/;|]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (segments.length <= 1) {
+    const single = stripFrenchLeadingArticles(text);
+    const words = single.split(/\s+/).filter(Boolean);
+    return words.length ? words[words.length - 1] : single;
+  }
+
+  const lemmas = segments.map((seg) => {
+    const stripped = stripFrenchLeadingArticles(seg);
+    const words = stripped.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return '';
+    return words[words.length - 1];
+  }).filter(Boolean);
+
+  const unique = [...new Set(lemmas.map((l) => l.toLowerCase()))];
+  if (unique.length === 1) return unique[0];
+
+  const eurCandidate = unique.find((t) => t.endsWith('eur') || t.endsWith('euse'));
+  if (eurCandidate) return eurCandidate;
+
+  const teurCandidate = unique.find((t) => t.endsWith('teur'));
+  if (teurCandidate) return teurCandidate;
+
+  // Prefer last distinct segment (often the most specific gloss in MT output)
+  return unique[unique.length - 1] || lemmas[lemmas.length - 1];
+}
+
+/**
  * FR-only grammar enrichment.
  * Wiktionary-first approach with heuristic fallback.
  */
-async function getFrenchGrammarInfo(word) {
-  const cleaned = normalizeFrenchWord(word);
+async function getFrenchGrammarInfo(rawTranslated) {
+  const raw = String(rawTranslated || '').trim();
+  const segmentCount = raw.split(/[/;|]+/).map((s) => s.trim()).filter(Boolean).length;
+  const disambiguated = segmentCount > 1;
+
+  const lemmaRaw = pickFrenchLemmaForGrammar(rawTranslated);
+  const cleaned = normalizeFrenchWord(lemmaRaw || rawTranslated);
 
   if (!cleaned) {
     return {
       gender: null,
       plural: null,
+      lemma: null,
+      disambiguated: false,
       source: 'heuristic',
       confidence: 'low'
     };
   }
 
   const wiktionaryInfo = await getFrenchGrammarFromWiktionary(cleaned);
+  let result;
   if (wiktionaryInfo && (wiktionaryInfo.gender || wiktionaryInfo.plural)) {
-    return wiktionaryInfo;
+    result = wiktionaryInfo;
+  } else {
+    result = getFrenchGrammarHeuristic(cleaned);
   }
 
-  return getFrenchGrammarHeuristic(cleaned);
+  return {
+    ...result,
+    lemma: cleaned,
+    disambiguated: Boolean(disambiguated)
+  };
 }
 
 /**

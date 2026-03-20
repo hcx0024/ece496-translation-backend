@@ -77,6 +77,10 @@ struct FrenchGrammar: Codable {
     let plural: String?
     let source: String?
     let confidence: String?
+    /// Headword used for gender/plural (stable when `translated` mixes variants with `/`).
+    let lemma: String?
+    /// `true` when the translator returned several glosses in one string; plural applies to `lemma`.
+    let disambiguated: Bool?
 }
 
 struct TranslationWithExampleResponse: Codable {
@@ -320,7 +324,9 @@ TranslationAPI.translateWithExample(word: "hello", to: "es") { result in
 
 When `targetLanguage == "fr"`, backend may include:
 - `translation.frenchGrammar?.gender` (e.g. `"masculine"` or `"feminine"`)
-- `translation.frenchGrammar?.plural` (e.g. `"livres"`)
+- `translation.frenchGrammar?.plural` (e.g. `"livres"`) — **always one string** (no `/` mashups)
+- `translation.frenchGrammar?.lemma` — word the plural/gender refer to (e.g. `climatiseur` when `translated` is `climatisation/climatiseur/...`)
+- `translation.frenchGrammar?.disambiguated` — `true` when the raw translation had several glosses merged; show a short note so users don’t think there are “multiple plurals”
 - `translation.frenchGrammar?.source` (`"wiktionary"` or `"heuristic"`)
 - `translation.frenchGrammar?.confidence` (`"low"` or `"medium"`)
 
@@ -331,11 +337,14 @@ if translation.targetLanguage == "fr", let fg = translation.frenchGrammar {
     let genderText = fg.gender ?? "—"
     let pluralText = fg.plural ?? "—"
     let sourceText = fg.source ?? "unknown"
+    let lemmaNote = (fg.disambiguated == true && (fg.lemma != nil))
+        ? " (for “\(fg.lemma!)”)"
+        : ""
 
     DispatchQueue.main.async {
         // Example UI labels:
         // frenchGenderLabel.text = "Gender: \(genderText)"
-        // frenchPluralLabel.text = "Plural: \(pluralText)"
+        // frenchPluralLabel.text = "Plural: \(pluralText)\(lemmaNote)"
         // frenchMetaLabel.text = "Source: \(sourceText)"
     }
 }
@@ -363,6 +372,12 @@ struct FrenchGrammarCard: View {
 
                 Text("Gender: \(grammar.gender ?? "—")")
                 Text("Plural: \(grammar.plural ?? "—")")
+
+                if grammar.disambiguated == true, let lemma = grammar.lemma, !lemma.isEmpty {
+                    Text("Plural is for “\(lemma)” (translation listed several options).")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
 
                 // Optional meta info for debugging/transparency
                 Text("Source: \(grammar.source ?? "unknown")")
