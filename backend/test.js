@@ -64,9 +64,28 @@ async function runTests() {
     failed++;
   }
 
-  // Test 4: Get Languages
+  // Test 4: French grammar enrichment
   try {
-    console.log('Test 4: Get Supported Languages');
+    console.log('Test 4: French grammar enrichment on /api/translate');
+    const response = await axios.post(`${BASE_URL}/api/translate`, {
+      word: 'book',
+      targetLanguage: 'fr'
+    });
+    if (response.data.success && response.data.frenchGrammar && 'plural' in response.data.frenchGrammar) {
+      console.log(`✅ PASSED - frenchGrammar returned: gender=${response.data.frenchGrammar.gender}, plural=${response.data.frenchGrammar.plural}\n`);
+      passed++;
+    } else {
+      console.log('❌ FAILED - frenchGrammar missing in French translation response\n');
+      failed++;
+    }
+  } catch (error) {
+    console.log(`❌ FAILED - French grammar enrichment error: ${error.message}\n`);
+    failed++;
+  }
+
+  // Test 5: Get Languages
+  try {
+    console.log('Test 5: Get Supported Languages');
     const response = await axios.get(`${BASE_URL}/api/languages`);
     if (response.data.success && Array.isArray(response.data.languages)) {
       console.log(`✅ PASSED - Found ${response.data.languages.length} supported languages\n`);
@@ -80,9 +99,9 @@ async function runTests() {
     failed++;
   }
 
-  // Test 5: Missing Parameters
+  // Test 6: Missing Parameters
   try {
-    console.log('Test 5: Missing Parameters (should fail gracefully)');
+    console.log('Test 6: Missing Parameters (should fail gracefully)');
     const response = await axios.post(`${BASE_URL}/api/translate`, {
       word: 'hello'
       // Missing targetLanguage

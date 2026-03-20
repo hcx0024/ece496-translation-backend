@@ -73,6 +73,8 @@ app.post('/api/translate', async (req, res) => {
       const translatedText = translationResponse.data.responseData.translatedText;
       const matches = translationResponse.data.matches || [];
 
+      const frenchGrammar = targetLanguage === 'fr' ? await getFrenchGrammarInfo(translatedText) : null;
+
       // Return translation result
       res.json({
         success: true,
@@ -85,6 +87,7 @@ app.post('/api/translate', async (req, res) => {
           quality: m.quality,
           source: m.source
         })),
+        frenchGrammar,
         timestamp: new Date().toISOString()
       });
     } else {
@@ -285,6 +288,8 @@ app.post('/api/translate-with-example', async (req, res) => {
 
     console.log(`Step 4: Translated ${translatedExamples.length} example sentences`);
 
+    const frenchGrammar = targetLanguage === 'fr' ? await getFrenchGrammarInfo(translatedWord) : null;
+
     // Return complete response with multiple examples
     res.json({
       success: true,
@@ -299,6 +304,7 @@ app.post('/api/translate-with-example', async (req, res) => {
         source: translatedExamples[0].source
       } : null,
       confidence: wordTranslationResponse.data?.responseData?.match || 0,
+      frenchGrammar,
       timestamp: new Date().toISOString()
     });
 
@@ -441,6 +447,154 @@ app.use((err, req, res, next) => {
 // ============================================
 // 🔧 HELPER FUNCTIONS
 // ============================================
+
+/**
+ * FR-only grammar enrichment.
+ * Wiktionary-first approach with heuristic fallback.
+ */
+async function getFrenchGrammarInfo(word) {
+  const cleaned = normalizeFrenchWord(word);
+
+  if (!cleaned) {
+    return {
+      gender: null,
+      plural: null,
+      source: 'heuristic',
+      confidence: 'low'
+    };
+  }
+
+  const wiktionaryInfo = await getFrenchGrammarFromWiktionary(cleaned);
+  if (wiktionaryInfo && (wiktionaryInfo.gender || wiktionaryInfo.plural)) {
+    return wiktionaryInfo;
+  }
+
+  return getFrenchGrammarHeuristic(cleaned);
+}
+
+/**
+ * Try to read gender/plural signals from Wiktionary REST definition payload.
+ */
+async function getFrenchGrammarFromWiktionary(word) {
+  try {
+    const response = await axios.get(
+      `https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word)}`,
+      { timeout: 5000 }
+    );
+
+    const frenchEntries = response.data?.fr;
+    if (!Array.isArray(frenchEntries) || frenchEntries.length === 0) {
+      return null;
+    }
+
+    let gender = null;
+    let plural = null;
+
+    for (const entry of frenchEntries) {
+      const part = String(entry.partOfSpeech || '').toLowerCase();
+      if (!['noun', 'adjective'].includes(part)) continue;
+
+      const definitions = Array.isArray(entry.definitions) ? entry.definitions : [];
+      for (const defObj of definitions) {
+        const raw = String(defObj.definition || '');
+        const text = stripHtml(raw).toLowerCase();
+
+        if (!gender) {
+          if (text.includes('feminine noun') || text.includes('noun feminine') || text.includes('féminin')) {
+            gender = 'feminine';
+          } else if (text.includes('masculine noun') || text.includes('noun masculine') || text.includes('masculin')) {
+            gender = 'masculine';
+          }
+        }
+
+        if (!plural) {
+          const pluralOf = text.match(/plural of\s+([a-zà-ÿ'\-]+)/i);
+          if (pluralOf && pluralOf[1]) {
+            // current word is plural form already
+            plural = word;
+          }
+
+          const pluralForm = text.match(/plural\s*:?\s*([a-zà-ÿ'\-]+)/i);
+          if (!plural && pluralForm && pluralForm[1]) {
+            plural = pluralForm[1];
+          }
+        }
+      }
+    }
+
+    // If Wiktionary gave only one field, fill the other via heuristic.
+    if (!gender || !plural) {
+      const heuristic = getFrenchGrammarHeuristic(word);
+      if (!gender) gender = heuristic.gender;
+      if (!plural) plural = heuristic.plural;
+    }
+
+    return {
+      gender,
+      plural,
+      source: 'wiktionary',
+      confidence: gender ? 'medium' : 'low'
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+function normalizeFrenchWord(word) {
+  return String(word || '')
+    .toLowerCase()
+    .trim()
+    .replace(/^[^a-zA-ZÀ-ÿ]+|[^a-zA-ZÀ-ÿ]+$/g, '');
+}
+
+function stripHtml(input) {
+  return String(input || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Heuristic fallback for French grammar (gender/plural).
+ */
+function getFrenchGrammarHeuristic(cleaned) {
+  const feminineEndings = ['tion', 'sion', 'té', 'ette', 'ence', 'ance', 'ie', 'ure', 'ude', 'ade'];
+  const masculineEndings = ['age', 'ment', 'eau', 'isme', 'oir', 'teur', 'phone'];
+
+  let gender = null;
+  let confidence = 'low';
+
+  if (feminineEndings.some((e) => cleaned.endsWith(e))) {
+    gender = 'feminine';
+    confidence = 'medium';
+  } else if (masculineEndings.some((e) => cleaned.endsWith(e))) {
+    gender = 'masculine';
+    confidence = 'medium';
+  } else if (cleaned.endsWith('e')) {
+    gender = 'feminine';
+    confidence = 'low';
+  }
+
+  const alExceptions = ['bal', 'carnaval', 'chacal', 'festival', 'récital', 'régal'];
+  let plural = cleaned;
+
+  if (cleaned.endsWith('s') || cleaned.endsWith('x') || cleaned.endsWith('z')) {
+    plural = cleaned;
+  } else if (cleaned.endsWith('al') && !alExceptions.includes(cleaned)) {
+    plural = `${cleaned.slice(0, -2)}aux`;
+  } else if (cleaned.endsWith('eau') || cleaned.endsWith('eu') || cleaned.endsWith('au')) {
+    plural = `${cleaned}x`;
+  } else {
+    plural = `${cleaned}s`;
+  }
+
+  return {
+    gender,
+    plural,
+    source: 'heuristic',
+    confidence
+  };
+}
 
 /**
  * Generate a contextual example sentence for a word/phrase

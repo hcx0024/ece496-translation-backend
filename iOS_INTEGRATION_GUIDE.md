@@ -62,6 +62,7 @@ struct TranslationResponse: Codable {
     let targetLanguage: String
     let confidence: Double
     let alternatives: [Alternative]?
+    let frenchGrammar: FrenchGrammar?
     let timestamp: String
 }
 
@@ -71,11 +72,19 @@ struct Alternative: Codable {
     let source: String
 }
 
+struct FrenchGrammar: Codable {
+    let gender: String?
+    let plural: String?
+    let source: String?
+    let confidence: String?
+}
+
 struct TranslationWithExampleResponse: Codable {
     let success: Bool
     let original: String
     let translated: String
     let targetLanguage: String
+    let frenchGrammar: FrenchGrammar?
     let exampleSentences: [ExampleSentence]?
     let exampleSentence: ExampleSentence?
     let confidence: Double
@@ -307,6 +316,79 @@ TranslationAPI.translateWithExample(word: "hello", to: "es") { result in
 - **Examples:** use `translation.exampleSentences` (array of 3–5 items).  
 - **UI:** do all label/list updates inside `DispatchQueue.main.async { }`.
 
+### French-only grammar info (gender + plural)
+
+When `targetLanguage == "fr"`, backend may include:
+- `translation.frenchGrammar?.gender` (e.g. `"masculine"` or `"feminine"`)
+- `translation.frenchGrammar?.plural` (e.g. `"livres"`)
+- `translation.frenchGrammar?.source` (`"wiktionary"` or `"heuristic"`)
+- `translation.frenchGrammar?.confidence` (`"low"` or `"medium"`)
+
+Use it like this:
+
+```swift
+if translation.targetLanguage == "fr", let fg = translation.frenchGrammar {
+    let genderText = fg.gender ?? "—"
+    let pluralText = fg.plural ?? "—"
+    let sourceText = fg.source ?? "unknown"
+
+    DispatchQueue.main.async {
+        // Example UI labels:
+        // frenchGenderLabel.text = "Gender: \(genderText)"
+        // frenchPluralLabel.text = "Plural: \(pluralText)"
+        // frenchMetaLabel.text = "Source: \(sourceText)"
+    }
+}
+```
+
+If language is not French, `frenchGrammar` is usually `nil` (ignore it).
+
+### Optional: SwiftUI French grammar card (ready to paste)
+
+Use this small component to show French grammar metadata only when available:
+
+```swift
+import SwiftUI
+
+struct FrenchGrammarCard: View {
+    let grammar: FrenchGrammar?
+    let targetLanguage: String
+
+    var body: some View {
+        // Show only for French and when backend sent grammar data
+        if targetLanguage == "fr", let grammar {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("French Grammar")
+                    .font(.headline)
+
+                Text("Gender: \(grammar.gender ?? "—")")
+                Text("Plural: \(grammar.plural ?? "—")")
+
+                // Optional meta info for debugging/transparency
+                Text("Source: \(grammar.source ?? "unknown")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("Confidence: \(grammar.confidence ?? "low")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(12)
+            .background(Color.orange.opacity(0.12))
+            .cornerRadius(10)
+        }
+    }
+}
+```
+
+Example usage inside your view:
+
+```swift
+FrenchGrammarCard(
+    grammar: translation.frenchGrammar,
+    targetLanguage: translation.targetLanguage
+)
+```
+
 ---
 
 ### Play pronunciation
@@ -384,7 +466,9 @@ TranslationAPI.getLanguages { result in
 
 - **Base URL:** set once in `TranslationAPI.swift` as `baseURL`.
 - **Translate + examples:** `TranslationAPI.translateWithExample(word:to:completion:)`  
-  → Use `translation.translated` and `translation.exampleSentences`.
+  → Use `translation.translated`, `translation.exampleSentences`, and for French also `translation.frenchGrammar`.
+- **Translate (simple):** `TranslationAPI.translate(word:to:completion:)`  
+  → For French targets, also check `translation.frenchGrammar`.
 - **Pronunciation:** `TranslationAPI.getPronunciation(word:language:completion:)`  
   → Use `pronunciation.audioUrl` with `AVPlayer`.
 - **Languages list:** `TranslationAPI.getLanguages(completion:)`  
