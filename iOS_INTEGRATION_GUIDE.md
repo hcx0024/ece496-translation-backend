@@ -62,6 +62,8 @@ struct TranslationResponse: Codable {
     let targetLanguage: String
     let confidence: Double
     let alternatives: [Alternative]?
+    /// `"mymemory"` or `"lingva"` — which backend provider served the translation (optional for older servers).
+    let translationProvider: String?
     let frenchGrammar: FrenchGrammar?
     let timestamp: String
 }
@@ -92,6 +94,7 @@ struct TranslationWithExampleResponse: Codable {
     let exampleSentences: [ExampleSentence]?
     let exampleSentence: ExampleSentence?
     let confidence: Double
+    let translationProvider: String?
     let timestamp: String
 }
 

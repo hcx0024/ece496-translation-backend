@@ -60,43 +60,26 @@ app.post('/api/translate', async (req, res) => {
 
     console.log(`Translating "${word}" to ${targetLanguage}`);
 
-    // Call external translation API (MyMemory Translation API - Free, no API key required)
-    const translationResponse = await axiosGetWith429Retry(
-      'https://api.mymemory.translated.net/get',
-      {
-        params: {
-          q: word,
-          langpair: `en|${targetLanguage}`
-        },
-        timeout: 10000
-      },
-      { label: `/api/translate word="${word}" lang="${targetLanguage}"` }
+    const result = await translateEnToTarget(
+      word,
+      targetLanguage,
+      `/api/translate word="${word}" lang="${targetLanguage}"`
     );
+    const translatedText = result.translated;
 
-    if (translationResponse.data && translationResponse.data.responseData) {
-      const translatedText = translationResponse.data.responseData.translatedText;
-      const matches = translationResponse.data.matches || [];
+    const frenchGrammar = targetLanguage === 'fr' ? await getFrenchGrammarInfo(translatedText) : null;
 
-      const frenchGrammar = targetLanguage === 'fr' ? await getFrenchGrammarInfo(translatedText) : null;
-
-      // Return translation result
-      res.json({
-        success: true,
-        original: word,
-        translated: translatedText,
-        targetLanguage: targetLanguage,
-        confidence: translationResponse.data.responseData.match || 0,
-        alternatives: matches.slice(0, 3).map(m => ({
-          translation: m.translation,
-          quality: m.quality,
-          source: m.source
-        })),
-        frenchGrammar,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      throw new Error('Invalid response from translation service');
-    }
+    res.json({
+      success: true,
+      original: word,
+      translated: translatedText,
+      targetLanguage: targetLanguage,
+      confidence: result.confidence,
+      alternatives: result.alternatives,
+      translationProvider: result.provider,
+      frenchGrammar,
+      timestamp: new Date().toISOString()
+    });
 
   } catch (error) {
     console.error('Translation error:', error.message);
@@ -261,41 +244,27 @@ app.post('/api/translate-with-example', async (req, res) => {
     console.log(`Step 2: Found ${exampleSentences.length} example sentences`);
 
     // Step 3: Translate the word to target language (from English)
-    const wordTranslationResponse = await axiosGetWith429Retry(
-      'https://api.mymemory.translated.net/get',
-      {
-        params: {
-          q: englishWord,
-          langpair: `en|${targetLanguage}`
-        },
-        timeout: 10000
-      },
-      { label: `/api/translate-with-example word="${englishWord}" lang="${targetLanguage}"` }
+    const wordResult = await translateEnToTarget(
+      englishWord,
+      targetLanguage,
+      `/api/translate-with-example word="${englishWord}" lang="${targetLanguage}"`
     );
-
-    const translatedWord = wordTranslationResponse.data?.responseData?.translatedText || englishWord;
-    console.log(`Step 3: "${englishWord}" → "${translatedWord}" (${targetLanguage})`);
+    const translatedWord = wordResult.translated;
+    console.log(`Step 3: "${englishWord}" → "${translatedWord}" (${targetLanguage}) [${wordResult.provider}]`);
 
     // Step 4: Translate all example sentences to target language
     console.log(`Step 4: Translating ${exampleSentences.length} example sentences to ${targetLanguage}`);
     const translatedExamples = await Promise.all(
       exampleSentences.map(async (example) => {
         try {
-          const sentenceTranslationResponse = await axiosGetWith429Retry(
-            'https://api.mymemory.translated.net/get',
-            {
-              params: {
-                q: example.original,
-                langpair: `en|${targetLanguage}`
-              },
-              timeout: 10000
-            },
-            { label: `/api/translate-with-example sentence="${example.original}" lang="${targetLanguage}"` }
+          const sentenceResult = await translateEnToTarget(
+            example.original,
+            targetLanguage,
+            `/api/translate-with-example sentence="${example.original}" lang="${targetLanguage}"`
           );
-          
           return {
             original: example.original,
-            translated: sentenceTranslationResponse.data?.responseData?.translatedText || example.original,
+            translated: sentenceResult.translated,
             source: example.source
           };
         } catch (error) {
@@ -326,7 +295,8 @@ app.post('/api/translate-with-example', async (req, res) => {
         translated: translatedExamples[0].translated,
         source: translatedExamples[0].source
       } : null,
-      confidence: wordTranslationResponse.data?.responseData?.match || 0,
+      confidence: wordResult.confidence,
+      translationProvider: wordResult.provider,
       frenchGrammar,
       timestamp: new Date().toISOString()
     });
@@ -543,6 +513,79 @@ async function axiosGetWith429Retry(url, axiosConfig, { label = '', maxRetries =
       await new Promise((r) => setTimeout(r, waitMs));
     }
   }
+}
+
+/** Lingva uses ISO-like codes; map our picker codes where they differ. */
+function mapTargetForLingva(targetLanguage) {
+  const t = String(targetLanguage || '').trim();
+  const map = {
+    'zh-CN': 'zh',
+    'zh-TW': 'zh'
+  };
+  return map[t] || t;
+}
+
+/**
+ * Second provider: Lingva (GET /api/v1/{source}/{target}/{query}). Override base with LINGVA_BASE_URL.
+ */
+async function translateWithLingva(text, targetLanguage) {
+  const target = mapTargetForLingva(targetLanguage);
+  const base = (process.env.LINGVA_BASE_URL || 'https://lingva.ml').replace(/\/$/, '');
+  const url = `${base}/api/v1/en/${encodeURIComponent(target)}/${encodeURIComponent(text)}`;
+  const res = await axios.get(url, { timeout: 15000 });
+  const errMsg = res.data?.error;
+  if (errMsg) {
+    throw new Error(typeof errMsg === 'string' ? errMsg : 'Lingva error');
+  }
+  const translation = res.data?.translation;
+  if (typeof translation !== 'string' || !translation) {
+    throw new Error('Invalid Lingva response');
+  }
+  return translation;
+}
+
+/**
+ * Primary: MyMemory. Fallback: Lingva when MyMemory fails (429, timeout, empty body, etc.).
+ */
+async function translateEnToTarget(text, targetLanguage, label) {
+  try {
+    const translationResponse = await axiosGetWith429Retry(
+      'https://api.mymemory.translated.net/get',
+      {
+        params: {
+          q: text,
+          langpair: `en|${targetLanguage}`
+        },
+        timeout: 10000
+      },
+      { label }
+    );
+    const d = translationResponse.data;
+    if (d?.responseData?.translatedText) {
+      const matches = d.matches || [];
+      return {
+        translated: d.responseData.translatedText,
+        confidence: d.responseData.match || 0,
+        alternatives: matches.slice(0, 3).map((m) => ({
+          translation: m.translation,
+          quality: m.quality,
+          source: m.source
+        })),
+        provider: 'mymemory'
+      };
+    }
+    console.warn(`MyMemory returned no translatedText for ${label}, trying Lingva fallback`);
+  } catch (e) {
+    console.warn(`MyMemory failed for ${label}: ${e.message}, trying Lingva fallback`);
+  }
+
+  const translated = await translateWithLingva(text, targetLanguage);
+  return {
+    translated,
+    confidence: 0,
+    alternatives: [],
+    provider: 'lingva'
+  };
 }
 
 /**
