@@ -132,6 +132,14 @@ class TranslationAPI {
     // ⚠️ REPLACE with the real API URL from your backend teammate
     static let baseURL = "https://ece496-translation-api.onrender.com"
 
+    /// `/api/translate-with-example` does more work than `/api/translate` (dictionary + word + several sentence translations + French grammar). On a cold Render dyno the first request can take 30–60+ seconds. Use a longer timeout than `URLSession.shared` (default ~60s) or you will see `NSURLErrorDomain Code=-1001` (timed out).
+    private static let longRunningSession: URLSession = {
+        let cfg = URLSessionConfiguration.default
+        cfg.timeoutIntervalForRequest = 120
+        cfg.timeoutIntervalForResource = 120
+        return URLSession(configuration: cfg)
+    }()
+
     // Translate a word and get 3–5 example sentences (recommended for learning)
     static func translateWithExample(
         word: String,
@@ -152,7 +160,7 @@ class TranslationAPI {
             completion(.failure(error))
             return
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        longRunningSession.dataTask(with: request) { data, _, error in
             if let error = error {
                 completion(.failure(error))
                 return
@@ -470,6 +478,7 @@ TranslationAPI.getLanguages { result in
 
 | What you see | What to do |
 |--------------|------------|
+| `NSURLErrorDomain Code=-1001` (“The request timed out”) on **`translateWithExample`** | This endpoint is slow (many upstream calls). **Cold start** on Render can add 30–60+ seconds. Use the guide’s `longRunningSession` (120s) for this call only, or raise `timeoutIntervalForRequest` / `timeoutIntervalForResource`. `/api/translate` can keep the default session. |
 | “Invalid URL” or request fails | Check that `TranslationAPI.baseURL` is the exact URL from your backend teammate (including `https://`). |
 | “No data received” | 1) Open `https://YOUR-URL/health` in Safari. 2) If it doesn’t load, the backend might be down or the URL wrong. 3) Check device has internet. |
 | App crashes when you translate | Make sure you’re using `switch result` and handling both `.success` and `.failure`. |
