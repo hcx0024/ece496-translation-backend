@@ -61,13 +61,17 @@ app.post('/api/translate', async (req, res) => {
     console.log(`Translating "${word}" to ${targetLanguage}`);
 
     // Call external translation API (MyMemory Translation API - Free, no API key required)
-    const translationResponse = await axios.get('https://api.mymemory.translated.net/get', {
-      params: {
-        q: word,
-        langpair: `en|${targetLanguage}`
+    const translationResponse = await axiosGetWith429Retry(
+      'https://api.mymemory.translated.net/get',
+      {
+        params: {
+          q: word,
+          langpair: `en|${targetLanguage}`
+        },
+        timeout: 10000
       },
-      timeout: 10000
-    });
+      { label: `/api/translate word="${word}" lang="${targetLanguage}"` }
+    );
 
     if (translationResponse.data && translationResponse.data.responseData) {
       const translatedText = translationResponse.data.responseData.translatedText;
@@ -96,6 +100,17 @@ app.post('/api/translate', async (req, res) => {
 
   } catch (error) {
     console.error('Translation error:', error.message);
+
+    if (error?.statusCode === 429) {
+      const retryAfterSeconds = error.retryAfterMs != null ? Math.ceil(error.retryAfterMs / 1000) : null;
+      return res.status(429).json({
+        error: 'Rate limited',
+        message: 'Upstream translation service rate-limited (429). Please retry shortly.',
+        upstreamUrl: error.upstreamUrl,
+        retryAfterSeconds: retryAfterSeconds,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     if (error.code === 'ECONNABORTED') {
       return res.status(504).json({
@@ -246,13 +261,17 @@ app.post('/api/translate-with-example', async (req, res) => {
     console.log(`Step 2: Found ${exampleSentences.length} example sentences`);
 
     // Step 3: Translate the word to target language (from English)
-    const wordTranslationResponse = await axios.get('https://api.mymemory.translated.net/get', {
-      params: {
-        q: englishWord,
-        langpair: `en|${targetLanguage}`
+    const wordTranslationResponse = await axiosGetWith429Retry(
+      'https://api.mymemory.translated.net/get',
+      {
+        params: {
+          q: englishWord,
+          langpair: `en|${targetLanguage}`
+        },
+        timeout: 10000
       },
-      timeout: 10000
-    });
+      { label: `/api/translate-with-example word="${englishWord}" lang="${targetLanguage}"` }
+    );
 
     const translatedWord = wordTranslationResponse.data?.responseData?.translatedText || englishWord;
     console.log(`Step 3: "${englishWord}" → "${translatedWord}" (${targetLanguage})`);
@@ -262,13 +281,17 @@ app.post('/api/translate-with-example', async (req, res) => {
     const translatedExamples = await Promise.all(
       exampleSentences.map(async (example) => {
         try {
-          const sentenceTranslationResponse = await axios.get('https://api.mymemory.translated.net/get', {
-            params: {
-              q: example.original,
-              langpair: `en|${targetLanguage}`
+          const sentenceTranslationResponse = await axiosGetWith429Retry(
+            'https://api.mymemory.translated.net/get',
+            {
+              params: {
+                q: example.original,
+                langpair: `en|${targetLanguage}`
+              },
+              timeout: 10000
             },
-            timeout: 10000
-          });
+            { label: `/api/translate-with-example sentence="${example.original}" lang="${targetLanguage}"` }
+          );
           
           return {
             original: example.original,
@@ -310,6 +333,17 @@ app.post('/api/translate-with-example', async (req, res) => {
 
   } catch (error) {
     console.error('Translation with example error:', error.message);
+
+    if (error?.statusCode === 429) {
+      const retryAfterSeconds = error.retryAfterMs != null ? Math.ceil(error.retryAfterMs / 1000) : null;
+      return res.status(429).json({
+        error: 'Rate limited',
+        message: 'Upstream translation service rate-limited (429). Please retry shortly.',
+        upstreamUrl: error.upstreamUrl,
+        retryAfterSeconds: retryAfterSeconds,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     if (error.code === 'ECONNABORTED') {
       return res.status(504).json({
@@ -447,6 +481,69 @@ app.use((err, req, res, next) => {
 // ============================================
 // 🔧 HELPER FUNCTIONS
 // ============================================
+
+class UpstreamRateLimitedError extends Error {
+  constructor({ message, upstreamUrl, retryAfterMs }) {
+    super(message);
+    this.name = 'UpstreamRateLimitedError';
+    this.statusCode = 429;
+    this.upstreamUrl = upstreamUrl;
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+function parseRetryAfterToMs(retryAfterHeader) {
+  if (!retryAfterHeader) return null;
+  const s = String(retryAfterHeader).trim();
+  // Common format: seconds.
+  const secs = Number.parseInt(s, 10);
+  if (!Number.isNaN(secs)) return Math.max(0, secs * 1000);
+
+  // Alternative: HTTP date.
+  const dt = Date.parse(s);
+  if (!Number.isNaN(dt)) return Math.max(0, dt - Date.now());
+  return null;
+}
+
+/**
+ * GET wrapper that retries on upstream 429 with exponential backoff.
+ * - Retries respect `Retry-After` when present.
+ * - Throws `UpstreamRateLimitedError` when still rate-limited after retries.
+ */
+async function axiosGetWith429Retry(url, axiosConfig, { label = '', maxRetries = 3, baseDelayMs = 500 } = {}) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await axios.get(url, axiosConfig);
+    } catch (err) {
+      const status = err?.response?.status;
+      const retryAfterHeader = err?.response?.headers?.['retry-after'];
+
+      if (status !== 429) {
+        throw err;
+      }
+
+      const retryAfterMs = parseRetryAfterToMs(retryAfterHeader);
+
+      console.warn(
+        `Upstream rate-limited (429). label=${label} upstream=${url} attempt=${attempt + 1}/${maxRetries + 1}` +
+          (retryAfterMs != null ? ` retryAfterMs=${retryAfterMs}` : '')
+      );
+
+      if (attempt >= maxRetries) {
+        throw new UpstreamRateLimitedError({
+          message: 'Upstream service rate-limited (429)',
+          upstreamUrl: url,
+          retryAfterMs
+        });
+      }
+
+      const backoffMs = retryAfterMs != null ? retryAfterMs : baseDelayMs * Math.pow(2, attempt);
+      const jitterMs = Math.floor(Math.random() * 250);
+      const waitMs = backoffMs + jitterMs;
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+  }
+}
 
 /**
  * Strip leading French articles from a segment (for picking a dictionary lemma).
